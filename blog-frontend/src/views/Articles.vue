@@ -113,7 +113,8 @@ const fetchArticles = async () => {
     const params = {
       page: currentPage.value,
       page_size: pageSize.value,
-      sort: sortBy.value
+      sort: sortBy.value,
+      status: 1 // 只获取已发布的文章
     }
 
     if (searchKeyword.value) {

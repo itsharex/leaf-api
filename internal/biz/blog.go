@@ -182,6 +182,11 @@ func (uc *blogUseCase) GetArticleDetail(articleID, userID uint) (*dto.ArticleDet
 		return nil, errors.New("文章不存在")
 	}
 
+	// 博客前台只能查看已发布的文章（status = 1）
+	if article.Status != 1 {
+		return nil, errors.New("文章不存在或未发布")
+	}
+
 	// 转换为响应结构
 	articleResp := &dto.ArticleResponse{
 		ID:              article.ID,

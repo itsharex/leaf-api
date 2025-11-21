@@ -134,7 +134,8 @@ const fetchArticles = async () => {
   try {
     const { data } = await getArticles({
       page: currentPage.value,
-      page_size: pageSize.value
+      page_size: pageSize.value,
+      status: 1 // 只获取已发布的文章
     })
     articles.value = data.list || []
     total.value = data.total || 0
@@ -150,7 +151,8 @@ const fetchHotArticles = async () => {
     const { data } = await getArticles({
       page: 1,
       page_size: 5,
-      sort: 'views'
+      sort: 'views',
+      status: 1 // 只获取已发布的文章
     })
     hotArticles.value = data.list || []
   } catch (error) {

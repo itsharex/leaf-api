@@ -24,15 +24,15 @@
                   <div class="article-stats">
                     <span class="stat-item">
                       <el-icon><View /></el-icon>
-                      {{ article.views || 0 }}
+                      {{ article.view_count || 0 }}
                     </span>
                     <span class="stat-item">
                       <el-icon><ChatDotRound /></el-icon>
-                      {{ article.comments || 0 }}
+                      {{ article.comment_count || 0 }}
                     </span>
                     <span class="stat-item">
                       <el-icon><Star /></el-icon>
-                      {{ article.likes || 0 }}
+                      {{ article.like_count || 0 }}
                     </span>
                   </div>
                 </div>
@@ -67,14 +67,14 @@
                   @click="handleLike"
                 >
                   <el-icon><Star v-if="!isLiked" /><StarFilled v-else /></el-icon>
-                  {{ isLiked ? '已点赞' : '点赞' }} ({{ article.likes || 0 }})
+                  {{ isLiked ? '已点赞' : '点赞' }} ({{ article.like_count || 0 }})
                 </el-button>
                 <el-button
                   :type="isFavorited ? 'warning' : 'default'"
                   @click="handleFavorite"
                 >
                   <el-icon><Collection v-if="!isFavorited" /><CollectionTag v-else /></el-icon>
-                  {{ isFavorited ? '已收藏' : '收藏' }} ({{ article.favorites || 0 }})
+                  {{ isFavorited ? '已收藏' : '收藏' }} ({{ article.favorite_count || 0 }})
                 </el-button>
               </div>
             </template>
@@ -408,12 +408,12 @@ const handleLike = async () => {
   try {
     if (isLiked.value) {
       await unlikeArticle(article.value.id)
-      article.value.likes = (article.value.likes || 0) - 1
+      article.value.like_count = Math.max(0, (article.value.like_count || 0) - 1)
       isLiked.value = false
       ElMessage.success('已取消点赞')
     } else {
       await likeArticle(article.value.id)
-      article.value.likes = (article.value.likes || 0) + 1
+      article.value.like_count = (article.value.like_count || 0) + 1
       isLiked.value = true
       ElMessage.success('点赞成功')
     }
@@ -431,12 +431,12 @@ const handleFavorite = async () => {
   try {
     if (isFavorited.value) {
       await unfavoriteArticle(article.value.id)
-      article.value.favorites = (article.value.favorites || 0) - 1
+      article.value.favorite_count = Math.max(0, (article.value.favorite_count || 0) - 1)
       isFavorited.value = false
       ElMessage.success('已取消收藏')
     } else {
       await favoriteArticle(article.value.id)
-      article.value.favorites = (article.value.favorites || 0) + 1
+      article.value.favorite_count = (article.value.favorite_count || 0) + 1
       isFavorited.value = true
       ElMessage.success('收藏成功')
     }
