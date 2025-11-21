@@ -40,6 +40,39 @@ func JWTAuth() gin.HandlerFunc {
 	}
 }
 
+// OptionalJWTAuth 可选JWT认证中间件（token存在则解析，不存在不报错）
+func OptionalJWTAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			// 没有token，继续处理请求但不设置user_id
+			c.Next()
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			// token格式错误，继续处理但不设置user_id
+			c.Next()
+			return
+		}
+
+		claims, err := jwt.ParseToken(parts[1])
+		if err != nil {
+			// token无效，继续处理但不设置user_id
+			c.Next()
+			return
+		}
+
+		// token有效，设置用户信息
+		c.Set("admin_id", claims.AdminID)
+		c.Set("user_id", claims.AdminID)
+		c.Set("username", claims.Username)
+		c.Set("role", claims.Role)
+		c.Next()
+	}
+}
+
 // CORS 跨域中间件
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {

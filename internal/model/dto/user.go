@@ -21,7 +21,7 @@ type UpdateUserRequest struct {
 	Nickname string `json:"nickname" binding:"max=50"`
 	Avatar   string `json:"avatar" binding:"max=500"`
 	Bio      string `json:"bio" binding:"max=500"`
-	Status   int    `json:"status" binding:"omitempty,oneof=0 1"`
+	Status   *int   `json:"status" binding:"omitempty,oneof=0 1"`
 }
 
 // UserListRequest 用户列表请求

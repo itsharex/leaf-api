@@ -43,15 +43,22 @@ func registerRoutes(
 		blog.GET("/articles", articleService.List)           // 文章列表
 		blog.GET("/articles/search", articleService.Search)  // 搜索文章
 		blog.GET("/articles/archive", articleService.Archive) // 归档文章
-		blog.GET("/articles/:id", blogService.GetArticleDetail)   // 文章详情（支持登录状态）
-		blog.GET("/articles/:id/comments", blogService.GetArticleComments) // 文章评论
 
 		// 分类和标签
 		blog.GET("/categories", categoryService.List) // 分类列表
 		blog.GET("/tags", tagService.List)            // 标签列表
+	}
 
-		// 留言板（公开访问）
-		blog.GET("/guestbook", blogService.GetGuestbookMessages) // 获取留言板消息
+	// 博客可选认证路由（支持登录和未登录状态）
+	blogOptionalAuth := r.Group("/blog")
+	blogOptionalAuth.Use(middleware.OptionalJWTAuth())
+	{
+		// 文章详情（登录用户可查看点赞收藏状态）
+		blogOptionalAuth.GET("/articles/:id", blogService.GetArticleDetail)
+		// 文章评论（登录用户可查看点赞状态）
+		blogOptionalAuth.GET("/articles/:id/comments", blogService.GetArticleComments)
+		// 留言板（登录用户可查看点赞状态）
+		blogOptionalAuth.GET("/guestbook", blogService.GetGuestbookMessages)
 	}
 
 	// 博客需要认证的路由

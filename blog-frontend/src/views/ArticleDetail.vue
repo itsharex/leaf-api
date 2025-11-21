@@ -158,73 +158,141 @@ const contentRef = ref(null)
 const tocItems = ref([])
 const activeHeading = ref('')
 
+// 生成带行号的代码
+const generateCodeWithLineNumbers = (rawCode, highlighted) => {
+  // 去掉首尾空行
+  let rawLines = rawCode.replace(/^\n+/, '').replace(/\n+$/, '').split('\n')
+  let highlightedLines = highlighted.replace(/^\n+/, '').replace(/\n+$/, '').split('\n')
+
+  // 关键修复：过滤掉完全空白的行
+  // 保持行数一致
+  const lineCount = Math.max(rawLines.length, highlightedLines.length)
+
+  // 补齐到相同行数
+  while (rawLines.length < lineCount) rawLines.push('')
+  while (highlightedLines.length < lineCount) highlightedLines.push('')
+
+  // 生成行号和代码行
+  const lineNumbers = rawLines.map((_, i) =>
+      `<span class="line-number">${i + 1}</span>`).join('')
+
+  const codeLines = highlightedLines.map(line =>
+      `<span class="code-line">${line || '&nbsp;'}</span>`).join('')
+
+  return { lineNumbers, codeLines }
+}
+
+
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
   highlight: function (str, lang) {
+    // 清理代码
+    str = str.replace(/^\n+/, '').replace(/\n+$/, '').trim()
+
     const displayLang = lang ? lang.toUpperCase() : 'CODE'
 
+    let highlighted = ''
     if (lang && hljs.getLanguage(lang)) {
       try {
-        const highlighted = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
-        return `<div class="code-block-wrapper">
-                  <div class="code-block-header">
-                    <span class="code-lang-label">${displayLang}</span>
-                    <button class="code-copy-btn" data-code="${encodeURIComponent(str)}">
-                      <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14">
-                        <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                      </svg>
-                      <span class="copy-text">复制代码</span>
-                    </button>
-                  </div>
-                  <pre class="hljs language-${lang}"><code>${highlighted}</code></pre>
-                </div>`
+        highlighted = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
       } catch (__) {
-        // 高亮失败，尝试自动检测
-        const autoHighlighted = hljs.highlightAuto(str).value
-        return `<div class="code-block-wrapper">
-                  <div class="code-block-header">
-                    <span class="code-lang-label">${displayLang}</span>
-                    <button class="code-copy-btn" data-code="${encodeURIComponent(str)}">
-                      <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14">
-                        <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                      </svg>
-                      <span class="copy-text">复制代码</span>
-                    </button>
-                  </div>
-                  <pre class="hljs"><code>${autoHighlighted}</code></pre>
-                </div>`
+        highlighted = hljs.highlightAuto(str).value
       }
+    } else {
+      highlighted = md.utils.escapeHtml(str)
     }
 
-    // 没有语言或不支持的语言，纯文本
-    const escaped = md.utils.escapeHtml(str)
-    return `<div class="code-block-wrapper">
-              <div class="code-block-header">
-                <span class="code-lang-label">${displayLang}</span>
-                <button class="code-copy-btn" data-code="${encodeURIComponent(str)}">
-                  <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14">
-                    <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                  </svg>
-                  <span class="copy-text">复制代码</span>
-                </button>
-              </div>
-              <pre class="hljs"><code>${escaped}</code></pre>
-            </div>`
+    // 分割代码行
+    const rawLines = str.split('\n')
+    const highlightedLines = highlighted.split('\n')
+
+    // 确保行数相等
+    const lines = Math.max(rawLines.length, highlightedLines.length)
+    const lineNumbers = Array(lines).fill(0)
+        .map((_, i) => `<span class="line-number">${i + 1}</span>`)
+        .join('')
+
+    const codeLines = Array(lines).fill(0)
+        .map((_, i) => {
+          const line = highlightedLines[i] || ''
+          return `<span class="code-line">${line || '&nbsp;'}</span>`
+        })
+        .join('')
+
+    return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang-label">${displayLang}</span><button class="code-copy-btn" data-code="${encodeURIComponent(str)}"><svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg><span class="copy-text">复制代码</span></button></div><div class="code-block-body"><div class="line-numbers-wrapper">${lineNumbers}</div><pre class="hljs${lang ? ` language-${lang}` : ''}"><code>${codeLines}</code></pre></div></div>`
   }
 })
 
 const renderedContent = computed(() => {
-  // 优先使用 content_html，如果没有则使用 content_markdown 渲染
-  if (article.value?.content_html) {
-    return article.value.content_html
-  }
+  // 优先使用 content_markdown 渲染，以便应用代码高亮和复制功能
   if (article.value?.content_markdown) {
     return md.render(article.value.content_markdown)
   }
+  // 如果只有 content_html，需要后处理添加代码块功能
+  if (article.value?.content_html) {
+    return processHtmlCodeBlocks(article.value.content_html)
+  }
   return ''
 })
+
+// 处理 HTML 中的代码块，添加高亮和复制功能
+const processHtmlCodeBlocks = (html) => {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const preElements = doc.querySelectorAll('pre')
+
+  preElements.forEach(pre => {
+    const code = pre.querySelector('code')
+    if (!code) return
+
+    // 获取语言
+    let lang = ''
+    const classList = code.className.split(' ')
+    for (const cls of classList) {
+      if (cls.startsWith('language-')) {
+        lang = cls.replace('language-', '')
+        break
+      }
+    }
+
+    const displayLang = lang ? lang.toUpperCase() : 'CODE'
+    const codeText = code.textContent || ''
+
+    // 应用高亮
+    let highlightedCode = codeText
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        highlightedCode = hljs.highlight(codeText, { language: lang, ignoreIllegals: true }).value
+      } catch (e) {
+        highlightedCode = hljs.highlightAuto(codeText).value
+      }
+    } else {
+      highlightedCode = md.utils.escapeHtml(codeText)
+    }
+
+    // 创建新的代码块结构
+    const wrapper = doc.createElement('div')
+    wrapper.className = 'code-block-wrapper'
+    wrapper.innerHTML = `
+      <div class="code-block-header">
+        <span class="code-lang-label">${displayLang}</span>
+        <button class="code-copy-btn" data-code="${encodeURIComponent(codeText)}">
+          <svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14">
+            <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+          </svg>
+          <span class="copy-text">复制代码</span>
+        </button>
+      </div>
+      <pre class="hljs${lang ? ` language-${lang}` : ''}"><code>${highlightedCode}</code></pre>
+    `
+
+    pre.parentNode.replaceChild(wrapper, pre)
+  })
+
+  return doc.body.innerHTML
+}
 
 // 绑定复制按钮事件
 const bindCopyEvents = () => {
@@ -553,10 +621,10 @@ const formatDate = (date) => {
 /* 代码块wrapper */
 .article-content :deep(.code-block-wrapper) {
   position: relative;
-  margin: 20px 0;
+  margin: 0px 0;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* 代码块头部 */
@@ -564,9 +632,10 @@ const formatDate = (date) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 4px 12px;
   background: #21252b;
   border-bottom: 1px solid #181a1f;
+  margin: 0;
 }
 
 .article-content :deep(.code-lang-label) {
@@ -582,7 +651,7 @@ const formatDate = (date) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   font-size: 12px;
   color: #abb2bf;
   background: #282c34;
@@ -609,34 +678,97 @@ const formatDate = (date) => {
   vertical-align: middle;
 }
 
+/* 代码块主体 - 包含行号和代码 */
+.article-content :deep(.code-block-body) {
+  display: flex;
+  background-color: #282c34;
+  margin: 0;
+  padding: 0; /* 去掉上下空白 */
+}
+
+/* 行号容器 */
+.article-content :deep(.line-numbers-wrapper) {
+  flex-shrink: 0;
+  padding: 0;
+  background-color: #21252b;
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid #181a1f;
+  margin: 0;
+}
+
+/* 单个行号 */
+.article-content :deep(.line-number) {
+  display: block;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #636d83;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  margin: 0;
+}
+
 /* 代码块 */
 .article-content :deep(pre) {
   margin: 0 !important;
   background-color: #282c34 !important;
   color: #abb2bf !important;
-  padding: 20px !important;
+  padding: 0 12px !important;
   overflow-x: auto;
-  line-height: 1.6;
-  font-size: 14px;
+  flex: 1;
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+/* 代码块wrapper内的pre特殊处理 */
+.article-content :deep(.code-block-wrapper pre) {
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1.4;
+}
+
+/* 单行代码 */
+.article-content :deep(.code-line) {
+  display: block;
+  line-height: 1.8;
+  margin: 0; /* 防止多余空白 */
+  padding: 0;
 }
 
 .article-content :deep(pre code) {
   background-color: transparent !important;
   padding: 0 !important;
+  margin: 0 !important;
   color: inherit !important;
   font-family: 'Consolas', 'Monaco', 'Courier New', 'Menlo', monospace !important;
-  font-size: 14px !important;
+  font-size: 13px !important;
   border: none !important;
   display: block;
+  line-height: 1.8 !important;
+}
+
+/* 确保 code 内部没有额外的空白 */
+.article-content :deep(.code-block-wrapper pre code) {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 移除 code 元素可能的 before/after */
+.article-content :deep(pre code)::before,
+.article-content :deep(pre code)::after {
+  content: none !important;
+  display: none !important;
 }
 
 .article-content :deep(pre.hljs) {
+  margin: 0 !important;
+  padding: 0 !important;
   background-color: #282c34 !important;
+  line-height: 1.8; /* 让代码行间距紧凑 */
 }
 
 .article-content :deep(blockquote) {
   border-left: 4px solid #409eff;
-  padding-left: 16px;
   margin: 16px 0;
   color: #606266;
   font-style: italic;
@@ -745,30 +877,6 @@ const formatDate = (date) => {
   font-weight: 500;
 }
 
-.toc-level-1 {
-  padding-left: 12px;
-  font-weight: 500;
-}
-
-.toc-level-2 {
-  padding-left: 24px;
-}
-
-.toc-level-3 {
-  padding-left: 36px;
-  font-size: 13px;
-}
-
-.toc-level-4 {
-  padding-left: 48px;
-  font-size: 13px;
-}
-
-.toc-level-5,
-.toc-level-6 {
-  padding-left: 60px;
-  font-size: 12px;
-}
 
 /* 滚动条样式 */
 .toc-wrapper::-webkit-scrollbar {
@@ -803,10 +911,16 @@ const formatDate = (date) => {
 
   .article-content :deep(.code-block-header) {
     padding: 8px 12px;
+    margin-bottom: 0; /* 删掉头部和内容之间的空隙 */
   }
 
   .article-content :deep(pre) {
     padding: 16px !important;
+  }
+  .article-content :deep(pre),
+  .article-content :deep(code) {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 }
 </style>

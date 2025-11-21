@@ -37,7 +37,24 @@
         </el-form-item>
 
         <el-form-item label="封面" prop="cover">
-          <el-input v-model="form.cover" placeholder="封面图片URL" />
+          <div class="cover-uploader-wrapper">
+            <el-upload
+              class="cover-uploader"
+              :action="uploadAction"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleCoverSuccess"
+              :before-upload="beforeCoverUpload"
+              accept="image/*"
+            >
+              <img v-if="form.cover" :src="form.cover" class="cover-image" />
+              <div v-else class="cover-placeholder">
+                <el-icon class="cover-icon"><Plus /></el-icon>
+                <div class="cover-text">点击上传封面</div>
+              </div>
+            </el-upload>
+            <div class="upload-tip">建议上传 16:9 比例的图片，大小不超过 2MB</div>
+          </div>
         </el-form-item>
 
         <el-form-item label="内容" prop="content_markdown">
@@ -68,10 +85,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { getArticle, createArticle, updateArticle } from '@/api/article'
 import { getTags, getCategories } from '@/api/taxonomy'
 import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const formRef = ref()
 const submitting = ref(false)
@@ -79,6 +99,12 @@ const tags = ref([])
 const categories = ref([])
 
 const isEdit = computed(() => !!route.params.id)
+
+// 上传配置
+const uploadAction = computed(() => '/api/files/upload')
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${userStore.token}`
+}))
 
 const form = reactive({
   title: '',
@@ -116,6 +142,32 @@ const fetchData = async () => {
       tag_ids: article.tags?.map(t => t.id) || [],
       status: article.status
     })
+  }
+}
+
+// 封面上传前校验
+const beforeCoverUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB!')
+    return false
+  }
+  return true
+}
+
+// 封面上传成功
+const handleCoverSuccess = (response) => {
+  if (response.code === 0) {
+    form.cover = response.data.url
+    ElMessage.success('封面上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
   }
 }
 
@@ -169,5 +221,57 @@ onMounted(() => {
 
 .article-edit :deep(.el-form-item__content) {
   line-height: normal;
+}
+
+.cover-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cover-uploader :deep(.el-upload) {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+  width: 360px;
+  height: 202px;
+}
+
+.cover-uploader :deep(.el-upload:hover) {
+  border-color: #409eff;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #8c939d;
+}
+
+.cover-icon {
+  font-size: 28px;
+}
+
+.cover-text {
+  font-size: 14px;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

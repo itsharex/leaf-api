@@ -14,8 +14,22 @@
           <el-input v-model="profileForm.email" />
         </el-form-item>
 
-        <el-form-item label="头像URL" prop="avatar">
-          <el-input v-model="profileForm.avatar" placeholder="请输入头像URL" />
+        <el-form-item label="头像" prop="avatar">
+          <div class="avatar-uploader-wrapper">
+            <el-upload
+              class="avatar-uploader"
+              :action="uploadAction"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleAvatarSuccess"
+              :before-upload="beforeAvatarUpload"
+              accept="image/*"
+            >
+              <img v-if="profileForm.avatar" :src="profileForm.avatar" class="avatar" />
+              <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+            </el-upload>
+            <div class="upload-tip">建议上传 200x200 像素的图片</div>
+          </div>
         </el-form-item>
 
         <el-form-item>
@@ -51,8 +65,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
@@ -62,6 +77,12 @@ const profileFormRef = ref()
 const passwordFormRef = ref()
 const profileLoading = ref(false)
 const passwordLoading = ref(false)
+
+// 上传配置
+const uploadAction = computed(() => '/api/files/upload')
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${userStore.token}`
+}))
 
 const profileForm = reactive({
   username: '',
@@ -105,6 +126,32 @@ const loadProfile = () => {
   profileForm.username = userStore.userInfo.username
   profileForm.email = userStore.userInfo.email
   profileForm.avatar = userStore.userInfo.avatar || ''
+}
+
+// 头像上传前校验
+const beforeAvatarUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  const isLt2M = file.size / 1024 / 1024 < 2
+
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件!')
+    return false
+  }
+  if (!isLt2M) {
+    ElMessage.error('图片大小不能超过 2MB!')
+    return false
+  }
+  return true
+}
+
+// 头像上传成功
+const handleAvatarSuccess = (response) => {
+  if (response.code === 0) {
+    profileForm.avatar = response.data.url
+    ElMessage.success('头像上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
 }
 
 const handleUpdateProfile = async () => {
@@ -173,5 +220,48 @@ onMounted(() => {
 
 .profile-container :deep(.el-card__header) {
   font-weight: bold;
+}
+
+.avatar-uploader-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avatar-uploader :deep(.el-upload) {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+  width: 178px;
+  height: 178px;
+}
+
+.avatar-uploader :deep(.el-upload:hover) {
+  border-color: #409eff;
+}
+
+.avatar-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 178px;
+  height: 178px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar {
+  width: 178px;
+  height: 178px;
+  display: block;
+  object-fit: cover;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
 }
 </style>

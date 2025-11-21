@@ -102,8 +102,8 @@ func (uc *userUseCase) Update(id uint, req *dto.UpdateUserRequest) (*dto.UserRes
 	if req.Avatar != "" {
 		user.Avatar = req.Avatar
 	}
-	if req.Status >= 0 {
-		user.Status = req.Status
+	if req.Status != nil {
+		user.Status = *req.Status
 	}
 
 	if err := uc.data.UserRepo.Update(user); err != nil {
@@ -116,14 +116,19 @@ func (uc *userUseCase) Update(id uint, req *dto.UpdateUserRequest) (*dto.UserRes
 // Delete 删除用户
 func (uc *userUseCase) Delete(id uint) error {
 	// 检查用户是否存在
-	if _, err := uc.data.UserRepo.FindByID(id); err != nil {
+	user, err := uc.data.UserRepo.FindByID(id)
+	if err != nil {
 		return errors.New("用户不存在")
 	}
 
-	// 不允许删除最后一个管理员
-	users, total, _ := uc.data.UserRepo.List(1, 10, "", "admin")
-	if total <= 1 && len(users) <= 1 {
-		return errors.New("不能删除最后一个管理员")
+	// 只有当删除的是管理员时，才检查是否是最后一个管理员
+	if user.Role == "admin" || user.Role == "super_admin" {
+		// 统计管理员数量
+		var adminCount int64
+		uc.data.GetDB().Model(&po.User{}).Where("role IN ?", []string{"admin", "super_admin"}).Count(&adminCount)
+		if adminCount <= 1 {
+			return errors.New("不能删除最后一个管理员")
+		}
 	}
 
 	if err := uc.data.UserRepo.Delete(id); err != nil {
