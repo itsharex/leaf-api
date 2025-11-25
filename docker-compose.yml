@@ -13,7 +13,7 @@ services:
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3307:3306"  # 使用 3307 端口避免冲突
     volumes:
       - mysql_data:/var/lib/mysql
       - ./deploy/docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql

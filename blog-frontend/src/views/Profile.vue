@@ -210,7 +210,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getMyLikes, getMyFavorites } from '@/api/article'
-import { updateUserInfo, changePassword, getUserStats } from '@/api/auth'
+import { updateUserInfo, changePassword, getUserStats, getUserInfo } from '@/api/auth'
 import ArticleCard from '@/components/ArticleCard.vue'
 import { ElMessage } from 'element-plus'
 
@@ -257,12 +257,21 @@ const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${userStore.token}`
 }))
 
-const handleAvatarSuccess = (response) => {
+const handleAvatarSuccess = async (response) => {
   if (response.code === 0 && response.data) {
     settingsForm.avatar = response.data.url
-    // 立即更新 userStore，让左侧头像显示出来
-    userStore.updateUser({ avatar: response.data.url })
-    ElMessage.success('头像上传成功')
+    // 立即保存到数据库，确保与管理端同步
+    try {
+      const { data } = await updateUserInfo({
+        avatar: response.data.url
+      })
+      // 使用后端返回的完整数据更新store
+      userStore.updateUser(data)
+      ElMessage.success('头像上传并保存成功')
+    } catch (error) {
+      console.error('Failed to save avatar:', error)
+      ElMessage.error('头像上传成功，但保存失败，请点击保存设置按钮')
+    }
   } else {
     ElMessage.error(response.message || '上传失败')
   }
@@ -327,7 +336,16 @@ watch(activeTab, (newTab) => {
   }
 })
 
-const initUserSettings = () => {
+const initUserSettings = async () => {
+  try {
+    // 从后端获取最新的用户信息，确保与管理端同步
+    const { data } = await getUserInfo()
+    userStore.updateUser(data)
+  } catch (error) {
+    console.error('Failed to fetch user info:', error)
+  }
+
+  // 更新表单数据
   settingsForm.username = userStore.user?.username || ''
   settingsForm.email = userStore.user?.email || ''
   settingsForm.nickname = userStore.user?.nickname || ''
