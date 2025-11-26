@@ -149,7 +149,15 @@ const passwordRules = {
   ]
 }
 
-const loadProfile = () => {
+const loadProfile = async () => {
+  try {
+    // 从后端获取最新的用户信息，确保与博客端同步
+    await userStore.fetchProfile()
+  } catch (error) {
+    console.error('Failed to fetch profile:', error)
+  }
+
+  // 更新表单数据
   profileForm.username = userStore.userInfo.username
   profileForm.email = userStore.userInfo.email
   profileForm.avatar = userStore.userInfo.avatar || ''
@@ -177,10 +185,22 @@ const beforeAvatarUpload = (file) => {
 }
 
 // 头像上传成功
-const handleAvatarSuccess = (response) => {
+const handleAvatarSuccess = async (response) => {
   if (response.code === 0) {
     profileForm.avatar = response.data.url
-    ElMessage.success('头像上传成功')
+    // 立即保存到数据库，确保与博客端同步
+    try {
+      const { data } = await updateProfile({
+        avatar: response.data.url
+      })
+      // 使用后端返回的完整用户数据更新store
+      userStore.userInfo = data
+      localStorage.setItem('userInfo', JSON.stringify(data))
+      ElMessage.success('头像上传并保存成功')
+    } catch (error) {
+      console.error('Failed to save avatar:', error)
+      ElMessage.error('头像上传成功，但保存失败，请点击更新信息按钮')
+    }
   } else {
     ElMessage.error(response.message || '上传失败')
   }

@@ -1,5 +1,5 @@
 # 构建阶段
-FROM node:18-alpine as builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/node:18-alpine-linuxarm64 as builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY package*.json ./
 
 # 安装依赖
 RUN npm ci --only=production
-
+RUN npm i
 # 复制源代码
 COPY . .
 
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # 生产阶段
-FROM nginx:1.25-alpine
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.25-alpine-linuxarm64
 
 # 复制自定义 nginx 配置
 COPY deploy/nginx/nginx.conf /etc/nginx/conf.d/default.conf

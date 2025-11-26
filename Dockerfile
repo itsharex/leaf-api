@@ -1,7 +1,7 @@
 # 多阶段构建 Dockerfile
 
 # 第一阶段：构建
-FROM golang:1.21-alpine AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/golang:1.21-alpine3.18-linuxarm64 AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -22,7 +22,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o leaf-api .
 
 # 第二阶段：运行
-FROM alpine:latest
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/alpine:latest-linuxarm64
 
 # 安装必要的运行时依赖
 RUN apk --no-cache add ca-certificates tzdata
