@@ -2,7 +2,7 @@
 
 # 第一阶段：构建
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:1.21-alpine AS builder
-
+# docker
 # 设置工作目录
 WORKDIR /app
 RUN echo "https://mirrors.aliyun.com/alpine/v3.20/main/" > /etc/apk/repositories && \

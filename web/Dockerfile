@@ -18,7 +18,7 @@ RUN npm run build
 
 # 生产阶段
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.25-alpine
-
+#
 # 复制自定义 nginx 配置
 COPY deploy/nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
