@@ -26,7 +26,7 @@ type ArticleUseCase interface {
 	// UpdateStatus 更新文章状态
 	UpdateStatus(id uint, status int) error
 	// Search 搜索文章
-	Search(keyword string, page, limit int) (*dto.PageResponse, error)
+	Search(keyword string, page, limit int, sort string) (*dto.PageResponse, error)
 	// Archive 获取归档文章（按月份分组）
 	Archive(page, limit int) (*dto.PageResponse, error)
 	// GetDefaultCategoryID 获取默认分类ID
@@ -184,7 +184,7 @@ func (uc *articleUseCase) List(req *dto.ArticleListRequest) (*dto.PageResponse, 
 	articles, total, err := uc.data.ArticleRepo.List(
 		req.Page, req.Limit,
 		categoryID, tagID,
-		req.Status, req.Keyword,
+		req.Status, req.Keyword, req.Sort,
 	)
 	if err != nil {
 		return nil, errors.New("查询文章列表失败")
@@ -339,7 +339,7 @@ func markdownToHTML(md string) string {
 }
 
 // Search 搜索文章
-func (uc *articleUseCase) Search(keyword string, page, limit int) (*dto.PageResponse, error) {
+func (uc *articleUseCase) Search(keyword string, page, limit int, sort string) (*dto.PageResponse, error) {
 	// 使用文章列表请求结构，设置搜索关键词
 	req := &dto.ArticleListRequest{
 		PageRequest: dto.PageRequest{
@@ -348,6 +348,7 @@ func (uc *articleUseCase) Search(keyword string, page, limit int) (*dto.PageResp
 		},
 		Keyword: keyword,
 		Status:  "1", // 只搜索已发布的文章
+		Sort:    sort,
 	}
 	return uc.List(req)
 }

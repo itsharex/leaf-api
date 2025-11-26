@@ -2,8 +2,17 @@
   <div class="archive">
     <div class="container">
       <div class="page-header">
-        <h1 class="page-title">文章归档</h1>
-        <p class="page-subtitle">时光荏苒，记录点滴</p>
+        <div class="header-left">
+          <h1 class="page-title">文章归档</h1>
+          <p class="page-subtitle">时光荏苒，记录点滴</p>
+        </div>
+        <el-button
+          v-if="archives.length > 0"
+          size="small"
+          @click="toggleAllMonths"
+        >
+          {{ allCollapsed ? '全部展开' : '全部折叠' }}
+        </el-button>
       </div>
 
       <div v-loading="loading" class="archive-content">
@@ -14,44 +23,50 @@
           </div>
 
           <div v-for="month in year.months" :key="month.month" class="month-group">
-            <div class="month-header">
+            <div class="month-header" @click="toggleMonth(year.year, month.month)">
+              <el-icon class="collapse-icon" :class="{ collapsed: isMonthCollapsed(year.year, month.month) }">
+                <ArrowDown />
+              </el-icon>
               <h3 class="month-title">{{ month.month }}月</h3>
+              <span class="month-count">{{ month.articles.length }} 篇</span>
             </div>
 
-            <div class="articles-list">
-              <div
-                v-for="article in month.articles"
-                :key="article.id"
-                class="article-item"
-                @click="router.push(`/articles/${article.id}`)"
-              >
-                <div class="article-date">
-                  {{ formatDay(article.created_at) }}
-                </div>
-                <div class="article-info">
-                  <h4 class="article-title">{{ article.title }}</h4>
-                  <p v-if="article.summary" class="article-summary">{{ article.summary }}</p>
-                  <div class="article-meta">
-                    <el-tag
-                      v-if="article.category && article.category.name"
-                      size="small"
-                      type="primary"
-                      effect="plain"
-                    >
-                      {{ article.category.name }}
-                    </el-tag>
-                    <span class="meta-item">
-                      <el-icon><View /></el-icon>
-                      {{ article.view_count || 0 }}
-                    </span>
-                    <span class="meta-item">
-                      <el-icon><ChatDotRound /></el-icon>
-                      {{ article.comment_count || 0 }}
-                    </span>
+            <el-collapse-transition>
+              <div v-show="!isMonthCollapsed(year.year, month.month)" class="articles-list">
+                <div
+                  v-for="article in month.articles"
+                  :key="article.id"
+                  class="article-item"
+                  @click="router.push(`/articles/${article.id}`)"
+                >
+                  <div class="article-date">
+                    {{ formatDay(article.created_at) }}
+                  </div>
+                  <div class="article-info">
+                    <h4 class="article-title">{{ article.title }}</h4>
+                    <p v-if="article.summary" class="article-summary">{{ article.summary }}</p>
+                    <div class="article-meta">
+                      <el-tag
+                        v-if="article.category && article.category.name"
+                        size="small"
+                        type="primary"
+                        effect="plain"
+                      >
+                        {{ article.category.name }}
+                      </el-tag>
+                      <span class="meta-item">
+                        <el-icon><View /></el-icon>
+                        {{ article.view_count || 0 }}
+                      </span>
+                      <span class="meta-item">
+                        <el-icon><ChatDotRound /></el-icon>
+                        {{ article.comment_count || 0 }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </el-collapse-transition>
           </div>
         </div>
 
@@ -71,6 +86,8 @@ const router = useRouter()
 
 const archives = ref([])
 const loading = ref(false)
+const collapsedMonths = ref(new Set())
+const allCollapsed = ref(false)
 
 onMounted(() => {
   fetchArchives()
@@ -141,11 +158,68 @@ const processArchiveData = (articles) => {
 const formatDay = (date) => {
   return dayjs(date).format('MM-DD')
 }
+
+// 切换月份折叠状态
+const toggleMonth = (year, month) => {
+  const key = `${year}-${month}`
+  if (collapsedMonths.value.has(key)) {
+    collapsedMonths.value.delete(key)
+  } else {
+    collapsedMonths.value.add(key)
+  }
+}
+
+// 检查月份是否折叠
+const isMonthCollapsed = (year, month) => {
+  return collapsedMonths.value.has(`${year}-${month}`)
+}
+
+// 切换全部月份
+const toggleAllMonths = () => {
+  if (allCollapsed.value) {
+    // 全部展开
+    collapsedMonths.value.clear()
+    allCollapsed.value = false
+  } else {
+    // 全部折叠
+    collapsedMonths.value.clear()
+    archives.value.forEach(year => {
+      year.months.forEach(month => {
+        collapsedMonths.value.add(`${year.year}-${month.month}`)
+      })
+    })
+    allCollapsed.value = true
+  }
+}
 </script>
 
 <style scoped>
 .archive {
   padding: 20px 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #303133;
+  margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: #909399;
+  margin: 0;
 }
 
 .archive-content {
@@ -185,7 +259,29 @@ const formatDay = (date) => {
 }
 
 .month-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.month-header:hover {
+  background-color: #f5f7fa;
+}
+
+.collapse-icon {
+  font-size: 16px;
+  color: #909399;
+  transition: transform 0.3s;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(-90deg);
 }
 
 .month-title {
@@ -195,6 +291,15 @@ const formatDay = (date) => {
   margin: 0;
   padding-left: 12px;
   border-left: 3px solid #67c23a;
+  flex: 1;
+}
+
+.month-count {
+  font-size: 12px;
+  color: #909399;
+  background-color: #f0f2f5;
+  padding: 2px 8px;
+  border-radius: 10px;
 }
 
 .articles-list {

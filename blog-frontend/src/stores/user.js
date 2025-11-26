@@ -44,9 +44,19 @@ export const useUserStore = defineStore('user', () => {
       return { success: true }
     } catch (error) {
       console.error('Login error:', error)
+
+      // 优先使用后端返回的错误消息
+      let errorMessage = '登录失败'
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       return {
         success: false,
-        message: error.response?.data?.message || error.message || '登录失败'
+        message: errorMessage
       }
     }
   }
@@ -68,9 +78,19 @@ export const useUserStore = defineStore('user', () => {
       return { success: true }
     } catch (error) {
       console.error('Register error:', error)
+
+      // 优先使用后端返回的错误消息
+      let errorMessage = '注册失败'
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       return {
         success: false,
-        message: error.response?.data?.message || error.message || '注册失败'
+        message: errorMessage
       }
     }
   }

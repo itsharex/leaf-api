@@ -237,10 +237,22 @@ const handleLogin = async () => {
         const redirect = route.query.redirect || '/'
         router.push(redirect)
       } else {
-        ElMessage.error(result.message || '登录失败')
+        // 显示后端返回的错误消息，持续时间增加到 3 秒
+        ElMessage({
+          message: result.message || '登录失败',
+          type: 'error',
+          duration: 3000,
+          showClose: true
+        })
       }
     } catch (error) {
       console.error('Login error:', error)
+      ElMessage({
+        message: '登录请求失败，请稍后重试',
+        type: 'error',
+        duration: 3000,
+        showClose: true
+      })
     } finally {
       loading.value = false
     }
@@ -265,10 +277,22 @@ const handleRegister = async () => {
         ElMessage.success('注册成功')
         router.push('/')
       } else {
-        ElMessage.error(result.message || '注册失败')
+        // 显示后端返回的错误消息，持续时间增加到 3 秒
+        ElMessage({
+          message: result.message || '注册失败',
+          type: 'error',
+          duration: 3000,
+          showClose: true
+        })
       }
     } catch (error) {
       console.error('Register error:', error)
+      ElMessage({
+        message: '注册请求失败，请稍后重试',
+        type: 'error',
+        duration: 3000,
+        showClose: true
+      })
     } finally {
       loading.value = false
     }

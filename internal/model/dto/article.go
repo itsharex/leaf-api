@@ -40,6 +40,7 @@ type ArticleListRequest struct {
 	Tag      string `form:"tag"`
 	Status   string `form:"status"`
 	Keyword  string `form:"keyword"`
+	Sort     string `form:"sort"` // latest, views, likes
 }
 
 // ArticleResponse 文章响应

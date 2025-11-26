@@ -4,7 +4,7 @@ import { useUserStore } from '@/stores/user'
 
 // 创建 axios 实例
 const request = axios.create({
-  baseURL: '/blog',
+  baseURL: '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -43,42 +43,45 @@ request.interceptors.response.use(
     // 处理业务错误
     const errorMsg = res.message || '请求失败'
 
-    // 根据 code 进行不同处理
+    // 只处理需要特殊处理的错误码
     if (res.code === 401) {
       ElMessage.error('未授权，请登录')
       const userStore = useUserStore()
       userStore.logout()
       window.location.href = '/login'
-    } else if (res.code === 403) {
-      ElMessage.error('拒绝访问')
-    } else if (res.code === 404) {
-      ElMessage.error('请求的资源不存在')
-    } else if (res.code === 500) {
-      ElMessage.error('服务器错误')
-    } else {
-      ElMessage.error(errorMsg)
     }
+    // 其他错误不在拦截器中显示，让业务代码处理
 
-    return Promise.reject(new Error(errorMsg))
+    // 将完整的响应数据传递给 catch
+    const error = new Error(errorMsg)
+    error.code = res.code
+    error.response = { data: res }
+    return Promise.reject(error)
   },
   error => {
     console.error('Response error:', error)
 
+    // HTTP 状态码错误
     if (error.response) {
-      const { status } = error.response
+      const { status, data } = error.response
+      const errorMsg = data?.message || '请求失败'
 
       if (status === 401) {
         ElMessage.error('未授权，请登录')
         const userStore = useUserStore()
         userStore.logout()
         window.location.href = '/login'
-      } else {
-        ElMessage.error('请求失败')
       }
+      // 其他 HTTP 错误不在拦截器中显示，让业务代码处理
+
+      // 确保错误对象包含后端返回的消息
+      error.message = errorMsg
     } else if (error.request) {
+      // 网络错误才在拦截器中显示
       ElMessage.error('网络错误，请检查网络连接')
+      error.message = '网络错误，请检查网络连接'
     } else {
-      ElMessage.error('请求配置错误')
+      error.message = '请求配置错误'
     }
 
     return Promise.reject(error)

@@ -107,6 +107,11 @@ func (s *ArticleService) List(c *gin.Context) {
 	// 解析分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	// 如果传了page_size，优先使用page_size
+	if pageSize > 0 {
+		limit = pageSize
+	}
 	req.Page = page
 	req.Limit = limit
 
@@ -115,6 +120,7 @@ func (s *ArticleService) List(c *gin.Context) {
 	req.Tag = c.Query("tag")
 	req.Status = c.Query("status")
 	req.Keyword = c.Query("keyword")
+	req.Sort = c.DefaultQuery("sort", "latest") // 默认按最新排序
 
 	resp, err := s.articleUseCase.List(&req)
 	if err != nil {
@@ -152,8 +158,14 @@ func (s *ArticleService) Search(c *gin.Context) {
 	keyword := c.Query("keyword")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	// 如果传了page_size，优先使用page_size
+	if pageSize > 0 {
+		limit = pageSize
+	}
+	sort := c.DefaultQuery("sort", "latest") // 默认按最新排序
 
-	resp, err := s.articleUseCase.Search(keyword, page, limit)
+	resp, err := s.articleUseCase.Search(keyword, page, limit, sort)
 	if err != nil {
 		response.ServerError(c, err.Error())
 		return

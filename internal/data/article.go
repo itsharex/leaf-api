@@ -18,7 +18,7 @@ type ArticleRepo interface {
 	// FindByIDWithRelations 根据 ID 查询文章（包含关联数据）
 	FindByIDWithRelations(id uint) (*po.Article, error)
 	// List 查询文章列表
-	List(page, limit int, categoryID, tagID uint, status, keyword string) ([]*po.Article, int64, error)
+	List(page, limit int, categoryID, tagID uint, status, keyword, sort string) ([]*po.Article, int64, error)
 	// UpdateStatus 更新文章状态
 	UpdateStatus(id uint, status int) error
 	// IncrementViewCount 增加浏览量
@@ -85,7 +85,7 @@ func (r *articleRepo) FindByIDWithRelations(id uint) (*po.Article, error) {
 }
 
 // List 查询文章列表
-func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyword string) ([]*po.Article, int64, error) {
+func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyword, sort string) ([]*po.Article, int64, error) {
 	var articles []*po.Article
 	var total int64
 
@@ -117,7 +117,18 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyw
 		return nil, 0, err
 	}
 
-	if err := query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&articles).Error; err != nil {
+	// 根据排序参数动态排序
+	orderBy := "created_at DESC" // 默认按创建时间降序
+	switch sort {
+	case "views":
+		orderBy = "view_count DESC"
+	case "likes":
+		orderBy = "like_count DESC"
+	case "latest":
+		orderBy = "created_at DESC"
+	}
+
+	if err := query.Offset(offset).Limit(limit).Order(orderBy).Find(&articles).Error; err != nil {
 		return nil, 0, err
 	}
 

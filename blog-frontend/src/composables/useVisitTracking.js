@@ -44,8 +44,8 @@ export function useVisitTracking() {
     if (navigator.sendBeacon) {
       try {
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
-        // 使用相对路径，由 Nginx 代理到后端
-        navigator.sendBeacon('/blog/visit', blob)
+        // 本地开发和生产环境都使用 /api，由 Vite 代理或 Nginx 处理
+        navigator.sendBeacon('/api/visit', blob)
       } catch (error) {
         console.warn('sendBeacon failed:', error)
       }
