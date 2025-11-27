@@ -289,6 +289,40 @@ const processHtmlCodeBlocks = (html) => {
   return doc.body.innerHTML
 }
 
+// 复制文本到剪贴板的通用函数(支持HTTP环境)
+const copyToClipboard = async (text) => {
+  // 优先尝试使用现代 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch (err) {
+      console.warn('Clipboard API failed, falling back to execCommand', err)
+    }
+  }
+
+  // 降级方案：使用传统的 document.execCommand 方法
+  // 这个方法在HTTP环境下也能工作
+  try {
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.left = '-999999px'
+    textArea.style.top = '-999999px'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+
+    const successful = document.execCommand('copy')
+    document.body.removeChild(textArea)
+
+    return successful
+  } catch (err) {
+    console.error('复制失败:', err)
+    return false
+  }
+}
+
 // 绑定复制按钮事件
 const bindCopyEvents = () => {
   nextTick(() => {
@@ -301,18 +335,24 @@ const bindCopyEvents = () => {
         const code = decodeURIComponent(btn.getAttribute('data-code'))
 
         try {
-          await navigator.clipboard.writeText(code)
-          const textSpan = btn.querySelector('.copy-text')
-          const originalText = textSpan.textContent
-          textSpan.textContent = '已复制'
-          btn.classList.add('copied')
+          const success = await copyToClipboard(code)
 
-          setTimeout(() => {
-            textSpan.textContent = originalText
-            btn.classList.remove('copied')
-          }, 2000)
+          if (success) {
+            const textSpan = btn.querySelector('.copy-text')
+            const originalText = textSpan.textContent
+            textSpan.textContent = '已复制'
+            btn.classList.add('copied')
+
+            setTimeout(() => {
+              textSpan.textContent = originalText
+              btn.classList.remove('copied')
+            }, 2000)
+          } else {
+            ElMessage.error('复制失败,请手动复制')
+          }
         } catch (err) {
-          ElMessage.error('复制失败')
+          console.error('复制出错:', err)
+          ElMessage.error('复制失败,请手动复制')
         }
       }
     })
