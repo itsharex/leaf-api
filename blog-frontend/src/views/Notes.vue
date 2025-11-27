@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getChaptersByTag } from '@/api/chapter'
 import { getTags } from '@/api/tag'
@@ -87,6 +87,9 @@ const chapters = ref([])
 const loading = ref(false)
 const currentTag = ref('')
 const expandedChapters = ref([])
+
+// 数据缓存
+const chaptersCache = ref({})
 
 onMounted(() => {
   fetchTags()
@@ -117,14 +120,22 @@ const fetchTags = async () => {
 const fetchChapters = async () => {
   if (!currentTag.value) return
 
+  // 检查缓存
+  if (chaptersCache.value[currentTag.value]) {
+    chapters.value = chaptersCache.value[currentTag.value]
+    return
+  }
+
   loading.value = true
   try {
     const { data } = await getChaptersByTag(currentTag.value)
     chapters.value = data || []
-    // 默认展开第一个章节
-    if (chapters.value.length > 0) {
-      expandedChapters.value = [chapters.value[0].id]
-    }
+
+    // 缓存数据
+    chaptersCache.value[currentTag.value] = chapters.value
+
+    // 不再默认展开第一个章节，让用户按需展开
+    expandedChapters.value = []
   } catch (error) {
     console.error('Failed to fetch chapters:', error)
   } finally {

@@ -123,14 +123,16 @@ const getSummary = () => {
 .card-wrapper {
   display: flex;
   gap: 20px;
+  min-height: 100%;
 }
 
 .cover {
   flex-shrink: 0;
   width: 280px;
-  height: 180px;
+  height: 100%;
   overflow: hidden;
   border-radius: 8px;
+  align-self: stretch;
 }
 
 .cover img {

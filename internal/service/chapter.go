@@ -157,7 +157,7 @@ func (s *ChapterService) DeleteChapter(c *gin.Context) {
 // GetChaptersByTag 获取标签下的章节及文章(用于前端笔记页面)
 func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 	tagName := c.Param("tag")
-	
+
 	// 先查找标签
 	var tag po.Tag
 	if err := s.data.GetDB().Where("name = ?", tagName).First(&tag).Error; err != nil {
@@ -168,12 +168,43 @@ func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 		response.Error(c, 500, "查询失败")
 		return
 	}
-	
+
 	// 查询该标签下的所有章节
 	var chapters []po.Chapter
 	s.data.GetDB().Where("tag_id = ?", tag.ID).Order("sort ASC, id ASC").Find(&chapters)
-	
-	// 为每个章节查询文章
+
+	// 如果没有章节，直接返回
+	if len(chapters) == 0 {
+		response.Success(c, []interface{}{})
+		return
+	}
+
+	// 收集所有章节ID
+	chapterIDs := make([]uint, len(chapters))
+	for i, chapter := range chapters {
+		chapterIDs[i] = chapter.ID
+	}
+
+	// 一次性查询所有章节的文章 (优化N+1查询问题)
+	var allArticles []po.Article
+	s.data.GetDB().Where("chapter_id IN ? AND status = 1", chapterIDs).
+		Select("id, title, chapter_id, view_count, created_at").
+		Find(&allArticles)
+
+	// 按章节ID分组文章
+	articlesByChapter := make(map[uint][]po.Article)
+	for _, article := range allArticles {
+		if article.ChapterID != nil {
+			articlesByChapter[*article.ChapterID] = append(articlesByChapter[*article.ChapterID], article)
+		}
+	}
+
+	// 为每个章节的文章排序
+	for chapterID := range articlesByChapter {
+		sortArticlesByTitleNumber(articlesByChapter[chapterID])
+	}
+
+	// 组装结果
 	type ChapterWithArticles struct {
 		po.Chapter
 		Articles []po.Article `json:"articles"`
@@ -181,12 +212,10 @@ func (s *ChapterService) GetChaptersByTag(c *gin.Context) {
 
 	var result []ChapterWithArticles
 	for _, chapter := range chapters {
-		var articles []po.Article
-		s.data.GetDB().Where("chapter_id = ? AND status = 1", chapter.ID).
-			Find(&articles)
-
-		// 对文章按标题中的序号进行排序
-		sortArticlesByTitleNumber(articles)
+		articles := articlesByChapter[chapter.ID]
+		if articles == nil {
+			articles = []po.Article{}
+		}
 
 		result = append(result, ChapterWithArticles{
 			Chapter:  chapter,

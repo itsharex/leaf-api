@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # MySQL 数据库
   mysql:
-    image: mysql:8.0
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/mysql:8.0.43
     container_name: leaf-mysql
     restart: always
     environment:
@@ -27,7 +27,7 @@ services:
 
   # Redis 缓存
   redis:
-    image: redis:7-alpine
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/redis:7-alpine
     container_name: leaf-redis
     restart: always
     ports:
