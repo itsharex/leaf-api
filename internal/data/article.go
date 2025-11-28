@@ -37,6 +37,14 @@ type ArticleRepo interface {
 	DecrementCommentCount(id uint) error
 	// AssociateTags 关联标签
 	AssociateTags(articleID uint, tagIDs []uint) error
+	// BatchUpdateCover 批量更新封面
+	BatchUpdateCover(articleIDs []uint, cover string) error
+	// BatchUpdateFields 批量更新字段
+	BatchUpdateFields(articleIDs []uint, updates map[string]interface{}) error
+	// BatchAssociateTags 批量关联标签
+	BatchAssociateTags(articleIDs []uint, tagIDs []uint) error
+	// BatchDelete 批量删除
+	BatchDelete(articleIDs []uint) error
 }
 
 // articleRepo 文章仓储实现
@@ -195,4 +203,42 @@ func (r *articleRepo) AssociateTags(articleID uint, tagIDs []uint) error {
 	}
 
 	return r.db.Model(&article).Association("Tags").Replace(tags)
+}
+
+// BatchUpdateCover 批量更新封面
+func (r *articleRepo) BatchUpdateCover(articleIDs []uint, cover string) error {
+	return r.db.Model(&po.Article{}).
+		Where("id IN ?", articleIDs).
+		Update("cover", cover).Error
+}
+
+// BatchUpdateFields 批量更新字段
+func (r *articleRepo) BatchUpdateFields(articleIDs []uint, updates map[string]interface{}) error {
+	return r.db.Model(&po.Article{}).
+		Where("id IN ?", articleIDs).
+		Updates(updates).Error
+}
+
+// BatchAssociateTags 批量关联标签
+func (r *articleRepo) BatchAssociateTags(articleIDs []uint, tagIDs []uint) error {
+	var tags []po.Tag
+	if err := r.db.Find(&tags, tagIDs).Error; err != nil {
+		return err
+	}
+
+	for _, articleID := range articleIDs {
+		var article po.Article
+		if err := r.db.First(&article, articleID).Error; err != nil {
+			continue
+		}
+		if err := r.db.Model(&article).Association("Tags").Replace(tags); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// BatchDelete 批量删除
+func (r *articleRepo) BatchDelete(articleIDs []uint) error {
+	return r.db.Select("Tags").Delete(&po.Article{}, articleIDs).Error
 }

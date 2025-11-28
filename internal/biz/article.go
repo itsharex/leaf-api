@@ -32,6 +32,12 @@ type ArticleUseCase interface {
 	Archive(page, limit int) (*dto.PageResponse, error)
 	// GetDefaultCategoryID 获取默认分类ID
 	GetDefaultCategoryID() (uint, error)
+	// BatchUpdateCover 批量更新封面
+	BatchUpdateCover(articleIDs []uint, cover string) error
+	// BatchUpdateFields 批量更新字段
+	BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) error
+	// BatchDelete 批量删除
+	BatchDelete(articleIDs []uint) error
 }
 
 // articleUseCase 文章业务用例实现
@@ -400,3 +406,70 @@ func (uc *articleUseCase) GetDefaultCategoryID() (uint, error) {
 	return categories[0].ID, nil
 }
 
+// BatchUpdateCover 批量更新封面
+func (uc *articleUseCase) BatchUpdateCover(articleIDs []uint, cover string) error {
+	if len(articleIDs) == 0 {
+		return errors.New("文章ID列表不能为空")
+	}
+
+	if err := uc.data.ArticleRepo.BatchUpdateCover(articleIDs, cover); err != nil {
+		return errors.New("批量更新封面失败: " + err.Error())
+	}
+
+	return nil
+}
+
+// BatchUpdateFields 批量更新字段
+func (uc *articleUseCase) BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) error {
+	if len(req.ArticleIDs) == 0 {
+		return errors.New("文章ID列表不能为空")
+	}
+
+	// 构建更新字段映射
+	updates := make(map[string]interface{})
+
+	if req.Cover != nil {
+		updates["cover"] = *req.Cover
+	}
+
+	if req.CategoryID != nil {
+		// 验证分类是否存在
+		if _, err := uc.data.CategoryRepo.FindByID(*req.CategoryID); err != nil {
+			return errors.New("分类不存在")
+		}
+		updates["category_id"] = *req.CategoryID
+	}
+
+	if req.ChapterID != nil {
+		updates["chapter_id"] = *req.ChapterID
+	}
+
+	// 更新基础字段
+	if len(updates) > 0 {
+		if err := uc.data.ArticleRepo.BatchUpdateFields(req.ArticleIDs, updates); err != nil {
+			return errors.New("批量更新字段失败: " + err.Error())
+		}
+	}
+
+	// 更新标签关联
+	if len(req.TagIDs) > 0 {
+		if err := uc.data.ArticleRepo.BatchAssociateTags(req.ArticleIDs, req.TagIDs); err != nil {
+			return errors.New("批量更新标签失败: " + err.Error())
+		}
+	}
+
+	return nil
+}
+
+// BatchDelete 批量删除
+func (uc *articleUseCase) BatchDelete(articleIDs []uint) error {
+	if len(articleIDs) == 0 {
+		return errors.New("文章ID列表不能为空")
+	}
+
+	if err := uc.data.ArticleRepo.BatchDelete(articleIDs); err != nil {
+		return errors.New("批量删除失败: " + err.Error())
+	}
+
+	return nil
+}

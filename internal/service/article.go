@@ -297,3 +297,57 @@ func generateSummary(content string, maxLen int) string {
 	return content
 }
 
+// BatchUpdateCover 批量更新封面
+func (s *ArticleService) BatchUpdateCover(c *gin.Context) {
+	var req dto.BatchUpdateCoverRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.articleUseCase.BatchUpdateCover(req.ArticleIDs, req.Cover); err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{
+		"updated": len(req.ArticleIDs),
+	})
+}
+
+// BatchUpdateFields 批量更新字段
+func (s *ArticleService) BatchUpdateFields(c *gin.Context) {
+	var req dto.BatchUpdateFieldsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.articleUseCase.BatchUpdateFields(&req); err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{
+		"updated": len(req.ArticleIDs),
+	})
+}
+
+// BatchDelete 批量删除
+func (s *ArticleService) BatchDelete(c *gin.Context) {
+	var req dto.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := s.articleUseCase.BatchDelete(req.ArticleIDs); err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{
+		"deleted": len(req.ArticleIDs),
+	})
+}
+

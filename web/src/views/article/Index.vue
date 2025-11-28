@@ -27,7 +27,20 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="articles" v-loading="loading" border>
+      <div v-if="selectedArticles.length > 0" style="margin-bottom: 15px">
+        <el-alert type="info" :closable="false">
+          已选择 {{ selectedArticles.length }} 篇文章
+          <el-button size="small" type="primary" @click="batchUpdateDialogVisible = true" style="margin-left: 10px">
+            批量更新
+          </el-button>
+          <el-button size="small" type="danger" @click="handleBatchDelete" style="margin-left: 10px">
+            批量删除
+          </el-button>
+        </el-alert>
+      </div>
+
+      <el-table :data="articles" v-loading="loading" border @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
         <el-table-column label="分类" width="120">
@@ -131,12 +144,98 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 批量更新对话框 -->
+    <el-dialog v-model="batchUpdateDialogVisible" title="批量更新" width="600px">
+      <div style="margin-bottom: 20px">
+        <p>将为选中的 {{ selectedArticles.length }} 篇文章批量更新以下字段（留空则不更新）</p>
+      </div>
+
+      <el-form label-width="80px">
+        <el-form-item label="封面图片">
+          <div style="display: flex; gap: 10px">
+            <el-input v-model="batchFormData.cover" placeholder="请输入图片URL或选择已有图片" clearable />
+            <el-button @click="coverSelectorVisible = true">选择图片</el-button>
+          </div>
+          <div v-if="batchFormData.cover" style="margin-top: 10px">
+            <el-image :src="batchFormData.cover" style="width: 200px; height: 120px; object-fit: cover" fit="cover" />
+          </div>
+        </el-form-item>
+
+        <el-form-item label="分类">
+          <el-select v-model="batchFormData.categoryId" placeholder="选择分类" clearable style="width: 100%">
+            <el-option
+              v-for="category in categories"
+              :key="category.id"
+              :label="category.name"
+              :value="category.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="章节">
+          <el-select v-model="batchFormData.chapterId" placeholder="选择章节" clearable style="width: 100%">
+            <el-option label="无章节" :value="null" />
+            <el-option
+              v-for="chapter in chapters"
+              :key="chapter.id"
+              :label="chapter.name"
+              :value="chapter.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="标签">
+          <el-select v-model="batchFormData.tagIds" placeholder="选择标签" multiple clearable style="width: 100%">
+            <el-option
+              v-for="tag in tags"
+              :key="tag.id"
+              :label="tag.name"
+              :value="tag.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchUpdateDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleBatchUpdate" :loading="batchUpdating">
+            确定更新
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
+    <!-- 图片选择器对话框 -->
+    <el-dialog v-model="coverSelectorVisible" title="选择图片" width="800px">
+      <div style="max-height: 400px; overflow-y: auto">
+        <el-row :gutter="10">
+          <el-col v-for="file in fileList2" :key="file.id" :span="6">
+            <div
+              class="file-item"
+              :class="{ selected: batchFormData.cover === file.url }"
+              @click="selectCoverImage(file.url)"
+            >
+              <el-image :src="file.url" fit="cover" style="width: 100%; height: 120px" />
+              <div class="file-name">{{ file.name }}</div>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+      <template #footer>
+        <el-button @click="coverSelectorVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getArticles, updateArticleStatus, deleteArticle } from '@/api/article'
+import { getFiles } from '@/api/file'
+import { getCategories, getTags } from '@/api/taxonomy'
+import { getChapters } from '@/api/chapter'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -147,6 +246,20 @@ const importDialogVisible = ref(false)
 const importing = ref(false)
 const fileList = ref([])
 const uploadRef = ref(null)
+const selectedArticles = ref([])
+const batchUpdateDialogVisible = ref(false)
+const batchFormData = reactive({
+  cover: '',
+  categoryId: null,
+  chapterId: null,
+  tagIds: []
+})
+const batchUpdating = ref(false)
+const coverSelectorVisible = ref(false)
+const fileList2 = ref([])
+const categories = ref([])
+const tags = ref([])
+const chapters = ref([])
 
 const statusMap = {
   0: { label: '草稿', type: 'info' },
@@ -261,8 +374,147 @@ const handleImport = async () => {
   }
 }
 
+const handleSelectionChange = (selection) => {
+  selectedArticles.value = selection
+}
+
+const handleBatchUpdate = async () => {
+  if (selectedArticles.value.length === 0) {
+    ElMessage.warning('请先选择要更新的文章')
+    return
+  }
+
+  // 检查是否至少有一个字段要更新
+  const hasUpdate = batchFormData.cover ||
+                    batchFormData.categoryId ||
+                    batchFormData.chapterId !== null ||
+                    batchFormData.tagIds.length > 0
+
+  if (!hasUpdate) {
+    ElMessage.warning('请至少填写一个要更新的字段')
+    return
+  }
+
+  batchUpdating.value = true
+  try {
+    const payload = {
+      article_ids: selectedArticles.value.map(a => a.id)
+    }
+
+    if (batchFormData.cover) {
+      payload.cover = batchFormData.cover
+    }
+    if (batchFormData.categoryId) {
+      payload.category_id = batchFormData.categoryId
+    }
+    if (batchFormData.chapterId !== null) {
+      payload.chapter_id = batchFormData.chapterId
+    }
+    if (batchFormData.tagIds.length > 0) {
+      payload.tag_ids = batchFormData.tagIds
+    }
+
+    await request.post('/articles/batch-update-fields', payload)
+
+    ElMessage.success(`成功更新 ${selectedArticles.value.length} 篇文章`)
+    batchUpdateDialogVisible.value = false
+
+    // 重置表单
+    batchFormData.cover = ''
+    batchFormData.categoryId = null
+    batchFormData.chapterId = null
+    batchFormData.tagIds = []
+
+    selectedArticles.value = []
+    fetchArticles()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '批量更新失败')
+  } finally {
+    batchUpdating.value = false
+  }
+}
+
+const selectCoverImage = (url) => {
+  batchFormData.cover = url
+  coverSelectorVisible.value = false
+}
+
+const fetchFiles = async () => {
+  try {
+    const res = await getFiles({ page: 1, page_size: 100 })
+    fileList2.value = res.data.list || []
+  } catch (error) {
+    console.error('获取文件列表失败:', error)
+  }
+}
+
+const fetchCategories = async () => {
+  try {
+    const res = await getCategories()
+    categories.value = res.data || []
+  } catch (error) {
+    console.error('获取分类列表失败:', error)
+  }
+}
+
+const fetchTags = async () => {
+  try {
+    const res = await getTags()
+    tags.value = res.data || []
+  } catch (error) {
+    console.error('获取标签列表失败:', error)
+  }
+}
+
+const fetchChapters = async () => {
+  try {
+    const res = await getChapters()
+    // 后端返回的是 res.data 直接就是数组,不需要 res.data.data
+    chapters.value = res.data || []
+    console.log('获取到的章节列表:', chapters.value)
+  } catch (error) {
+    console.error('获取章节列表失败:', error)
+  }
+}
+
+const handleBatchDelete = async () => {
+  if (selectedArticles.value.length === 0) {
+    ElMessage.warning('请先选择要删除的文章')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedArticles.value.length} 篇文章吗？此操作不可恢复！`,
+      '批量删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+
+    await request.post('/articles/batch-delete', {
+      article_ids: selectedArticles.value.map(a => a.id)
+    })
+
+    ElMessage.success(`成功删除 ${selectedArticles.value.length} 篇文章`)
+    selectedArticles.value = []
+    fetchArticles()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.message || '批量删除失败')
+    }
+  }
+}
+
 onMounted(() => {
   fetchArticles()
+  fetchFiles()
+  fetchCategories()
+  fetchTags()
+  fetchChapters()
 })
 </script>
 
@@ -280,5 +532,32 @@ onMounted(() => {
 
 .search-form {
   margin-bottom: 20px;
+}
+
+.file-item {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  padding: 5px;
+  margin-bottom: 10px;
+  transition: all 0.3s;
+}
+
+.file-item:hover {
+  border-color: #409eff;
+}
+
+.file-item.selected {
+  border-color: #67c23a;
+  background-color: #f0f9ff;
+}
+
+.file-name {
+  font-size: 12px;
+  text-align: center;
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
