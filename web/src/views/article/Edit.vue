@@ -57,24 +57,106 @@
 
         <el-form-item label="封面" prop="cover">
           <div class="cover-uploader-wrapper">
-            <el-upload
-              class="cover-uploader"
-              :action="uploadAction"
-              :headers="uploadHeaders"
-              :show-file-list="false"
-              :on-success="handleCoverSuccess"
-              :before-upload="beforeCoverUpload"
-              accept="image/*"
-            >
-              <img v-if="form.cover" :src="form.cover" class="cover-image" />
-              <div v-else class="cover-placeholder">
-                <el-icon class="cover-icon"><Plus /></el-icon>
-                <div class="cover-text">点击上传封面</div>
+            <!-- 当前封面预览 -->
+            <div v-if="form.cover" class="cover-preview">
+              <img :src="form.cover" class="cover-image" />
+              <div class="cover-actions">
+                <el-button type="primary" size="small" @click="showCoverSelector">选择封面</el-button>
+                <el-button type="danger" size="small" @click="removeCover">移除封面</el-button>
               </div>
-            </el-upload>
+            </div>
+
+            <!-- 未选择封面时显示选择按钮 -->
+            <div v-else class="cover-placeholder" @click="showCoverSelector">
+              <el-icon class="cover-icon"><Plus /></el-icon>
+              <div class="cover-text">点击选择封面</div>
+            </div>
+
             <div class="upload-tip">建议上传 16:9 比例的图片，大小不超过 2MB</div>
           </div>
         </el-form-item>
+
+    <!-- 封面选择对话框 -->
+    <el-dialog
+      v-model="coverDialogVisible"
+      title="选择封面"
+      width="900px"
+      :close-on-click-modal="false"
+    >
+      <el-tabs v-model="activeTab">
+        <!-- 从已上传文件选择 -->
+        <el-tab-pane label="从文件库选择" name="library">
+          <div class="file-library">
+            <div class="library-filters">
+              <el-input
+                v-model="fileSearch"
+                placeholder="搜索文件名"
+                clearable
+                style="width: 200px"
+                @input="fetchFiles"
+              />
+              <el-button type="primary" @click="fetchFiles">刷新</el-button>
+            </div>
+
+            <div v-loading="filesLoading" class="files-grid">
+              <div
+                v-for="file in imageFiles"
+                :key="file.id"
+                :class="['file-item', { selected: selectedFile?.id === file.id }]"
+                @click="selectFile(file)"
+              >
+                <img :src="file.url" :alt="file.name" />
+                <div class="file-name">{{ file.name }}</div>
+              </div>
+
+              <el-empty v-if="!filesLoading && imageFiles.length === 0" description="暂无图片文件" />
+            </div>
+
+            <el-pagination
+              v-if="fileTotal > 0"
+              v-model:current-page="filePage"
+              v-model:page-size="filePageSize"
+              :total="fileTotal"
+              layout="total, prev, pager, next"
+              @current-change="fetchFiles"
+              style="margin-top: 20px; justify-content: center"
+            />
+          </div>
+        </el-tab-pane>
+
+        <!-- 上传新文件 -->
+        <el-tab-pane label="上传新图片" name="upload">
+          <div class="upload-area">
+            <el-upload
+              :action="uploadAction"
+              :headers="uploadHeaders"
+              :show-file-list="true"
+              :on-success="handleUploadSuccess"
+              :before-upload="beforeCoverUpload"
+              accept="image/*"
+              drag
+            >
+              <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+              <div class="el-upload__text">
+                将图片拖到此处，或<em>点击上传</em>
+              </div>
+              <template #tip>
+                <div class="el-upload__tip">
+                  支持 jpg/png/gif 格式，建议 16:9 比例，大小不超过 2MB
+                </div>
+              </template>
+            </el-upload>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+
+      <template #footer>
+        <el-button @click="coverDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCoverSelection" :disabled="!selectedFile && activeTab === 'library'">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
 
         <el-form-item label="内容" prop="content_markdown">
           <MarkdownEditor v-model="form.content_markdown" />
@@ -104,8 +186,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { getArticle, createArticle, updateArticle } from '@/api/article'
 import { getTags, getCategories } from '@/api/taxonomy'
 import { getChapters } from '@/api/chapter'
+import { getFiles } from '@/api/file'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, UploadFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 
@@ -118,6 +201,17 @@ const submitting = ref(false)
 const tags = ref([])
 const categories = ref([])
 const chapters = ref([])
+
+// 封面选择对话框相关
+const coverDialogVisible = ref(false)
+const activeTab = ref('library')
+const filesLoading = ref(false)
+const imageFiles = ref([])
+const selectedFile = ref(null)
+const fileSearch = ref('')
+const filePage = ref(1)
+const filePageSize = ref(12)
+const fileTotal = ref(0)
 
 const isEdit = computed(() => !!route.params.id)
 
@@ -216,14 +310,71 @@ const beforeCoverUpload = (file) => {
   return true
 }
 
-// 封面上传成功
-const handleCoverSuccess = (response) => {
+// 显示封面选择器
+const showCoverSelector = () => {
+  coverDialogVisible.value = true
+  activeTab.value = 'library'
+  selectedFile.value = null
+  fetchFiles()
+}
+
+// 获取文件列表
+const fetchFiles = async () => {
+  filesLoading.value = true
+  try {
+    const params = {
+      page: filePage.value,
+      page_size: filePageSize.value,
+      type: 'image'
+    }
+
+    if (fileSearch.value) {
+      params.keyword = fileSearch.value
+    }
+
+    const res = await getFiles(params)
+    imageFiles.value = res.data.list || []
+    fileTotal.value = res.data.total || 0
+  } catch (error) {
+    ElMessage.error('获取文件列表失败')
+  } finally {
+    filesLoading.value = false
+  }
+}
+
+// 选择文件
+const selectFile = (file) => {
+  selectedFile.value = file
+}
+
+// 确认选择封面
+const confirmCoverSelection = () => {
+  if (activeTab.value === 'library' && selectedFile.value) {
+    form.cover = selectedFile.value.url
+    ElMessage.success('封面已选择')
+    coverDialogVisible.value = false
+  }
+}
+
+// 移除封面
+const removeCover = () => {
+  form.cover = ''
+}
+
+// 上传新图片成功后
+const handleUploadSuccess = (response) => {
   if (response.code === 0) {
     form.cover = response.data.url
     ElMessage.success('封面上传成功')
+    coverDialogVisible.value = false
   } else {
     ElMessage.error(response.message || '上传失败')
   }
+}
+
+// 封面上传成功(旧的,保留兼容)
+const handleCoverSuccess = (response) => {
+  handleUploadSuccess(response)
 }
 
 const handleSubmit = async () => {
@@ -301,14 +452,55 @@ onMounted(() => {
 }
 
 .cover-placeholder {
-  width: 100%;
-  height: 100%;
+  width: 360px;
+  height: 202px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   color: #8c939d;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.cover-placeholder:hover {
+  border-color: #409eff;
+}
+
+.cover-preview {
+  width: 360px;
+  height: 202px;
+  position: relative;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cover-preview .cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-preview .cover-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.cover-preview:hover .cover-actions {
+  opacity: 1;
 }
 
 .cover-icon {
@@ -319,15 +511,82 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.cover-image {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
 .upload-tip {
   font-size: 12px;
   color: #909399;
+}
+
+/* 封面选择对话框样式 */
+.file-library {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.library-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  min-height: 300px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.file-item {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s;
+  aspect-ratio: 16 / 9;
+  background: #f5f7fa;
+}
+
+.file-item:hover {
+  border-color: #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+.file-item.selected {
+  border-color: #409eff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+}
+
+.file-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.file-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upload-area {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 }
 </style>

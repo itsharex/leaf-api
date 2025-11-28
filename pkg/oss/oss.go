@@ -1,6 +1,7 @@
 package oss
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -153,4 +154,65 @@ func GetObjectKeyFromURL(url string) string {
 		return url[len(baseURL)+1:]
 	}
 	return ""
+}
+
+// UploadBytes 上传字节数据到OSS或本地存储
+func UploadBytes(data []byte, filename string) (string, error) {
+	// 如果使用本地存储或 bucket 未初始化
+	if useLocalStorage || bucket == nil {
+		return uploadBytesToLocal(data, filename)
+	}
+
+	// 尝试使用 OSS 上传,如果失败则使用本地存储
+	url, err := uploadBytesToOSS(data, filename)
+	if err != nil {
+		// OSS 上传失败,切换到本地存储
+		useLocalStorage = true
+		return uploadBytesToLocal(data, filename)
+	}
+
+	return url, nil
+}
+
+// uploadBytesToOSS 上传字节数据到 OSS
+func uploadBytesToOSS(data []byte, filename string) (string, error) {
+	// 创建一个带超时的通道
+	done := make(chan error, 1)
+	var uploadErr error
+
+	go func() {
+		uploadErr = bucket.PutObject(filename, bytes.NewReader(data))
+		done <- uploadErr
+	}()
+
+	// 等待上传完成或超时
+	select {
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("failed to upload file: %w", err)
+		}
+		url := fmt.Sprintf("%s/%s", config.AppConfig.OSS.BaseURL, filename)
+		return url, nil
+	case <-time.After(5 * time.Second):
+		return "", fmt.Errorf("upload timeout after 5 seconds")
+	}
+}
+
+// uploadBytesToLocal 上传字节数据到本地存储
+func uploadBytesToLocal(data []byte, filename string) (string, error) {
+	// 创建目标目录
+	destPath := filepath.Join("uploads", filename)
+	destDir := filepath.Dir(destPath)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// 写入文件
+	if err := os.WriteFile(destPath, data, 0644); err != nil {
+		return "", fmt.Errorf("failed to save file: %w", err)
+	}
+
+	// 返回相对路径URL
+	url := fmt.Sprintf("/uploads/%s", filename)
+	return url, nil
 }

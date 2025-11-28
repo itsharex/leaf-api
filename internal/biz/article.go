@@ -9,6 +9,7 @@ import (
 	"github.com/ydcloud-dy/leaf-api/internal/data"
 	"github.com/ydcloud-dy/leaf-api/internal/model/dto"
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
+	mdutils "github.com/ydcloud-dy/leaf-api/pkg/markdown"
 )
 
 // ArticleUseCase 文章业务用例接口
@@ -50,16 +51,27 @@ func (uc *articleUseCase) Create(req *dto.CreateArticleRequest, authorID uint) (
 		return nil, errors.New("分类不存在")
 	}
 
+	// 处理 Markdown 中的图片（下载外部图片并替换为本地链接）
+	processor := mdutils.NewImageProcessor("uploads", "")
+	processedMarkdown, err := processor.ProcessMarkdownImages(req.ContentMarkdown)
+	if err != nil {
+		// 图片处理失败不阻断文章创建，使用原始内容
+		processedMarkdown = req.ContentMarkdown
+	}
+
+	// 清理 Markdown 内容中的多余符号
+	processedMarkdown = mdutils.CleanMarkdownContent(processedMarkdown)
+
 	// 如果没有提供 HTML，则自动从 Markdown 转换
 	contentHTML := req.ContentHTML
 	if contentHTML == "" {
-		contentHTML = markdownToHTML(req.ContentMarkdown)
+		contentHTML = markdownToHTML(processedMarkdown)
 	}
 
 	// 创建文章
 	article := &po.Article{
 		Title:           req.Title,
-		ContentMarkdown: req.ContentMarkdown,
+		ContentMarkdown: processedMarkdown, // 使用处理后的 Markdown
 		ContentHTML:     contentHTML,
 		Summary:         req.Summary,
 		Cover:           req.Cover,
@@ -97,12 +109,23 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 		article.Title = req.Title
 	}
 	if req.ContentMarkdown != "" {
-		article.ContentMarkdown = req.ContentMarkdown
+		// 处理 Markdown 中的图片（下载外部图片并替换为本地链接）
+		processor := mdutils.NewImageProcessor("uploads", "")
+		processedMarkdown, err := processor.ProcessMarkdownImages(req.ContentMarkdown)
+		if err != nil {
+			// 图片处理失败不阻断文章更新，使用原始内容
+			processedMarkdown = req.ContentMarkdown
+		}
+
+		// 清理 Markdown 内容中的多余符号
+		processedMarkdown = mdutils.CleanMarkdownContent(processedMarkdown)
+
+		article.ContentMarkdown = processedMarkdown
 		// 如果提供了 Markdown，自动转换为 HTML（除非明确提供了 HTML）
 		if req.ContentHTML != "" {
 			article.ContentHTML = req.ContentHTML
 		} else {
-			article.ContentHTML = markdownToHTML(req.ContentMarkdown)
+			article.ContentHTML = markdownToHTML(processedMarkdown)
 		}
 	}
 	if req.Summary != "" {
