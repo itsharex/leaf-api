@@ -1,7 +1,7 @@
 # 多阶段构建 Dockerfile
 
 # 第一阶段：构建
-FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:1.21-alpine AS builder
+FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/golang:1.24-alpine AS builder
 # docker
 # 设置工作目录
 WORKDIR /app
