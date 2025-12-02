@@ -4,17 +4,22 @@
 
 ## 📋 目录
 
-- [技术栈](#技术栈)
-- [项目架构](#项目架构)
-- [目录结构](#目录结构)
-- [快速开始](#快速开始)
-- [部署方式](#部署方式)
+- [技术栈](#-技术栈)
+- [项目架构](#-项目架构)
+- [目录结构](#-目录结构)
+- [快速开始](#-快速开始)
+  - [环境要求](#环境要求)
+  - [本地开发](#本地开发)
+- [部署方式](#-部署方式)
   - [裸部署](#裸部署)
   - [Docker 部署](#docker-部署)
   - [Docker Compose 部署](#docker-compose-部署)
   - [Kubernetes 部署](#kubernetes-部署)
-- [配置说明](#配置说明)
-- [API 文档](#api-文档)
+- [配置说明](#️-配置说明)
+- [API 文档](#-api-文档)
+  - [管理后台 API](#管理后台-api)
+  - [博客前台 API](#博客前台-api)
+- [开发相关](#-开发相关)
 
 ## 🛠 技术栈
 
@@ -35,11 +40,11 @@
 
 ```
 ┌─────────────────┐
-│   HTTP Layer    │  (Gin Router)
+│   HTTP Layer    │  (Gin Router + Middleware)
 ├─────────────────┤
-│  Service Layer  │  (Business Logic)
+│  Service Layer  │  (HTTP Handler)
 ├─────────────────┤
-│  UseCase Layer  │  (Application Logic)
+│    Biz Layer    │  (Business Logic)
 ├─────────────────┤
 │   Data Layer    │  (Repository Pattern)
 ├─────────────────┤
@@ -47,35 +52,76 @@
 └─────────────────┘
 ```
 
+**各层职责说明**：
+- **HTTP Layer**: 路由配置、中间件处理（认证、日志、CORS等）
+- **Service Layer**: HTTP 请求处理、参数验证、响应封装
+- **Biz Layer**: 核心业务逻辑、业务规则
+- **Data Layer**: 数据库操作、缓存操作
+- **Model Layer**: 数据模型定义（PO持久化对象、DTO数据传输对象）
+
 ## 📂 目录结构
 
 ```
 .
 ├── cmd/                    # 命令行入口
-├── config/                 # 配置文件
-│   └── config.yaml        # 默认配置
+│   ├── app.go             # 应用初始化
+│   ├── injector.go        # 依赖注入（Wire生成）
+│   ├── wire.go            # Wire配置
+│   └── fix_images/        # 图片修复工具
+├── config/                 # 配置管理
+│   └── config.go          # 配置结构定义
 ├── deploy/                 # 部署配置
-│   ├── docker/            # Docker 相关
-│   ├── k8s/               # Kubernetes 配置
+│   ├── docker/            # Docker相关
+│   ├── k8s/               # Kubernetes配置
+│   ├── nginx/             # Nginx配置
 │   └── scripts/           # 部署脚本
 ├── docs/                   # 文档
-├── internal/              # 内部代码
-│   ├── biz/              # 业务逻辑层
-│   ├── data/             # 数据访问层
-│   ├── model/            # 数据模型
-│   │   ├── dto/         # 数据传输对象
-│   │   └── po/          # 持久化对象
-│   ├── server/           # 服务器配置
-│   └── service/          # 服务层
-├── pkg/                   # 公共包
-│   ├── middleware/       # 中间件
-│   ├── response/         # 响应封装
-│   └── utils/            # 工具函数
-├── config.yaml            # 配置文件
-├── main.go               # 程序入口
-├── Dockerfile            # Docker 镜像构建文件
-├── docker-compose.yml    # Docker Compose 配置
-└── README.md             # 项目文档
+├── internal/               # 内部代码（不对外暴露）
+│   ├── biz/               # 业务逻辑层（UseCase）
+│   │   ├── article.go     # 文章业务逻辑
+│   │   ├── auth.go        # 认证业务逻辑
+│   │   ├── blog.go        # 博客业务逻辑
+│   │   └── user.go        # 用户业务逻辑
+│   ├── data/              # 数据访问层（Repository）
+│   │   ├── article.go     # 文章数据访问
+│   │   ├── user.go        # 用户数据访问
+│   │   ├── category.go    # 分类数据访问
+│   │   ├── tag.go         # 标签数据访问
+│   │   └── comment.go     # 评论数据访问
+│   ├── model/             # 数据模型
+│   │   ├── dto/           # 数据传输对象（请求/响应）
+│   │   └── po/            # 持久化对象（数据库模型）
+│   ├── server/            # HTTP服务器
+│   │   ├── http.go        # HTTP服务器初始化
+│   │   ├── router.go      # 路由配置
+│   │   └── middleware/    # 中间件
+│   └── service/           # 服务层（HTTP Handler）
+│       ├── article.go     # 文章服务
+│       ├── auth.go        # 认证服务
+│       ├── blog.go        # 博客服务
+│       ├── user.go        # 用户服务
+│       ├── category.go    # 分类服务
+│       ├── tag.go         # 标签服务
+│       ├── comment.go     # 评论服务
+│       ├── chapter.go     # 章节服务
+│       ├── stats.go       # 统计服务
+│       ├── settings.go    # 设置服务
+│       └── file.go        # 文件服务
+├── pkg/                    # 公共包（可复用）
+│   ├── jwt/               # JWT认证
+│   ├── logger/            # 日志工具
+│   ├── markdown/          # Markdown处理
+│   ├── oss/               # 对象存储（阿里云OSS）
+│   ├── redis/             # Redis客户端
+│   └── response/          # HTTP响应封装
+├── tools/                  # 工具脚本
+│   └── reset_db.go        # 数据库重置工具
+├── uploads/                # 上传文件目录
+├── config.yaml             # 配置文件
+├── main.go                 # 程序入口
+├── Dockerfile              # Docker镜像构建文件
+├── docker-compose.yml      # Docker Compose配置
+└── README.md               # 项目文档
 ```
 
 ## 🚀 快速开始
@@ -308,35 +354,186 @@ log:
 
 ## 📖 API 文档
 
-### 认证相关
+### 管理后台 API
 
-- `POST /auth/register` - 用户注册
-- `POST /auth/login` - 用户登录
-- `POST /admin/login` - 管理员登录
-- `POST /auth/refresh` - 刷新 Token
+**基础路径**: `/`（需要 JWT 认证，除登录接口外）
 
-### 文章管理
+#### 认证相关 `/auth`
 
-- `GET /blog/articles` - 获取文章列表
-- `GET /blog/articles/:id` - 获取文章详情
-- `POST /articles` - 创建文章（需认证）
-- `PUT /articles/:id` - 更新文章（需认证）
-- `DELETE /articles/:id` - 删除文章（需认证）
-- `POST /articles/import` - 批量导入 Markdown 文件
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| POST | `/auth/login` | 管理员登录 | ✗ |
+| POST | `/auth/logout` | 管理员登出 | ✗ |
+| GET | `/auth/profile` | 获取当前管理员信息 | ✓ |
+| PUT | `/auth/profile` | 更新当前管理员信息 | ✓ |
 
-### 评论管理
+#### 用户管理 `/users`
 
-- `GET /blog/articles/:id/comments` - 获取文章评论
-- `POST /blog/comments` - 发表评论（需认证）
-- `POST /guestbook` - 留言板消息（需认证）
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/users` | 获取用户列表 | ✓ |
+| GET | `/users/:id` | 获取用户详情 | ✓ |
+| POST | `/users` | 创建用户 | ✓ |
+| PUT | `/users/:id` | 更新用户信息 | ✓ |
+| DELETE | `/users/:id` | 删除用户 | ✓ |
 
-### 用户管理
+#### 文章管理 `/articles`
 
-- `GET /users` - 获取用户列表（需管理员）
-- `GET /users/:id` - 获取用户详情
-- `PUT /users/:id` - 更新用户信息（需认证）
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/articles` | 获取文章列表 | ✓ |
+| GET | `/articles/:id` | 获取文章详情 | ✓ |
+| POST | `/articles` | 创建文章 | ✓ |
+| POST | `/articles/import` | 批量导入 Markdown 文件 | ✓ |
+| POST | `/articles/batch-update-cover` | 批量更新文章封面 | ✓ |
+| POST | `/articles/batch-update-fields` | 批量更新文章字段 | ✓ |
+| POST | `/articles/batch-delete` | 批量删除文章 | ✓ |
+| PUT | `/articles/:id` | 更新文章 | ✓ |
+| PATCH | `/articles/:id/status` | 更新文章状态（上下架） | ✓ |
+| DELETE | `/articles/:id` | 删除文章 | ✓ |
 
-更多 API 详情请查看 [API 文档](docs/api.md)
+#### 分类管理 `/categories`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/categories` | 获取分类列表 | ✓ |
+| POST | `/categories` | 创建分类 | ✓ |
+| DELETE | `/categories/:id` | 删除分类 | ✓ |
+
+#### 标签管理 `/tags`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/tags` | 获取标签列表 | ✓ |
+| POST | `/tags` | 创建标签 | ✓ |
+| DELETE | `/tags/:id` | 删除标签 | ✓ |
+
+#### 章节管理 `/chapters`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/chapters` | 获取章节列表 | ✓ |
+| GET | `/chapters/:id` | 获取章节详情 | ✓ |
+| POST | `/chapters` | 创建章节 | ✓ |
+| PUT | `/chapters/:id` | 更新章节 | ✓ |
+| DELETE | `/chapters/:id` | 删除章节 | ✓ |
+
+#### 评论管理 `/comments`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/comments` | 获取评论列表 | ✓ |
+| DELETE | `/comments/:id` | 删除评论 | ✓ |
+| PATCH | `/comments/:id/status` | 更新评论状态 | ✓ |
+
+#### 统计数据 `/stats`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/stats` | 获取站点统计数据 | ✓ |
+| GET | `/stats/hot-articles` | 获取热门文章 | ✓ |
+
+#### 系统设置 `/settings`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/settings` | 获取系统设置 | ✓ |
+| PUT | `/settings` | 更新系统设置 | ✓ |
+
+#### 文件管理 `/files`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| POST | `/files/upload` | 上传文件 | ✓ |
+| GET | `/files` | 获取文件列表 | ✓ |
+| DELETE | `/files/:id` | 删除文件 | ✓ |
+
+---
+
+### 博客前台 API
+
+**基础路径**: `/blog`
+
+#### 认证相关 `/blog/auth`
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| POST | `/blog/auth/register` | 用户注册 | ✗ |
+| POST | `/blog/auth/login` | 用户登录 | ✗ |
+| GET | `/blog/auth/me` | 获取当前用户信息 | ✓ |
+| PUT | `/blog/auth/profile` | 更新用户资料 | ✓ |
+| PUT | `/blog/auth/password` | 修改密码 | ✓ |
+
+#### 文章相关（公开）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/articles` | 获取文章列表 | ✗ |
+| GET | `/blog/articles/search` | 搜索文章 | ✗ |
+| GET | `/blog/articles/archive` | 文章归档 | ✗ |
+| GET | `/blog/articles/:id` | 获取文章详情（可选认证） | 可选 |
+
+#### 文章互动（需要认证）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| POST | `/blog/articles/:id/like` | 点赞文章 | ✓ |
+| DELETE | `/blog/articles/:id/like` | 取消点赞 | ✓ |
+| POST | `/blog/articles/:id/favorite` | 收藏文章 | ✓ |
+| DELETE | `/blog/articles/:id/favorite` | 取消收藏 | ✓ |
+
+#### 评论相关
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/articles/:id/comments` | 获取文章评论（可选认证） | 可选 |
+| POST | `/blog/comments` | 发表评论 | ✓ |
+| POST | `/blog/comments/:id/like` | 点赞评论 | ✓ |
+| DELETE | `/blog/comments/:id/like` | 取消点赞评论 | ✓ |
+| DELETE | `/blog/comments/:id` | 删除评论 | ✓ |
+
+#### 留言板
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/guestbook` | 获取留言列表（可选认证） | 可选 |
+| POST | `/blog/guestbook` | 发表留言 | ✓ |
+
+#### 分类和标签（公开）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/categories` | 获取分类列表 | ✗ |
+| GET | `/blog/tags` | 获取标签列表 | ✗ |
+| GET | `/blog/chapters/:tag` | 获取标签下的章节及文章 | ✗ |
+
+#### 用户数据（需要认证）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/user/likes` | 获取用户点赞列表 | ✓ |
+| GET | `/blog/user/favorites` | 获取用户收藏列表 | ✓ |
+| GET | `/blog/user/stats` | 获取用户统计数据 | ✓ |
+
+#### 统计和博主信息（公开）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| GET | `/blog/stats` | 获取站点统计 | ✗ |
+| GET | `/blog/stats/hot-articles` | 获取热门文章 | ✗ |
+| GET | `/blog/blogger` | 获取博主信息 | ✗ |
+
+#### 在线追踪（可选认证）
+
+| 方法 | 路径 | 说明 | 是否需要认证 |
+|------|------|------|--------------|
+| POST | `/blog/heartbeat` | 记录心跳（在线状态） | 可选 |
+| POST | `/blog/visit` | 记录访问时长 | 可选 |
+
+**说明**：
+- ✓ 表示需要在请求头中携带 `Authorization: Bearer <token>`
+- ✗ 表示无需认证即可访问
+- 可选表示支持登录和未登录两种状态，登录后返回更多数据
 
 ## 🔧 开发相关
 
