@@ -87,6 +87,11 @@ func (uc *articleUseCase) Create(req *dto.CreateArticleRequest, authorID uint) (
 		Status:          req.Status,
 	}
 
+	// 如果指定了创建时间，则设置
+	if req.CreatedAt != nil {
+		article.CreatedAt = *req.CreatedAt
+	}
+
 	if err := uc.data.ArticleRepo.Create(article); err != nil {
 		return nil, errors.New("创建文章失败: " + err.Error())
 	}
@@ -151,6 +156,11 @@ func (uc *articleUseCase) Update(id uint, req *dto.UpdateArticleRequest) (*dto.A
 	article.ChapterID = req.ChapterID
 	if req.Status >= 0 {
 		article.Status = req.Status
+	}
+
+	// 如果指定了创建时间，则更新
+	if req.CreatedAt != nil {
+		article.CreatedAt = *req.CreatedAt
 	}
 
 	if err := uc.data.ArticleRepo.Update(article); err != nil {

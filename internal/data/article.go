@@ -1,6 +1,8 @@
 package data
 
 import (
+	"time"
+
 	"github.com/ydcloud-dy/leaf-api/internal/model/po"
 	"gorm.io/gorm"
 )
@@ -64,7 +66,19 @@ func (r *articleRepo) Create(article *po.Article) error {
 
 // Update 更新文章
 func (r *articleRepo) Update(article *po.Article) error {
-	return r.db.Save(article).Error
+	// 使用 Updates 并设置 UpdatedAt，允许更新 CreatedAt
+	return r.db.Model(article).Updates(map[string]interface{}{
+		"title":            article.Title,
+		"content_markdown": article.ContentMarkdown,
+		"content_html":     article.ContentHTML,
+		"summary":          article.Summary,
+		"cover":            article.Cover,
+		"category_id":      article.CategoryID,
+		"chapter_id":       article.ChapterID,
+		"status":           article.Status,
+		"created_at":       article.CreatedAt, // 明确允许更新创建时间
+		"updated_at":       time.Now(),
+	}).Error
 }
 
 // Delete 删除文章

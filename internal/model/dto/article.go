@@ -4,28 +4,30 @@ import "time"
 
 // CreateArticleRequest 创建文章请求
 type CreateArticleRequest struct {
-	Title           string `json:"title" binding:"required,max=200"`
-	ContentMarkdown string `json:"content_markdown" binding:"required"`
-	ContentHTML     string `json:"content_html"` // 可选，如果不传则自动从 Markdown 转换
-	Summary         string `json:"summary" binding:"max=500"`
-	Cover           string `json:"cover" binding:"max=500"`
-	CategoryID      uint   `json:"category_id" binding:"required"`
-	ChapterID       *uint  `json:"chapter_id"` // 章节ID，可为空
-	TagIDs          []uint `json:"tag_ids"`
-	Status          int    `json:"status" binding:"oneof=0 1 2"` // 0: draft, 1: published, 2: offline
+	Title           string     `json:"title" binding:"required,max=200"`
+	ContentMarkdown string     `json:"content_markdown" binding:"required"`
+	ContentHTML     string     `json:"content_html"` // 可选，如果不传则自动从 Markdown 转换
+	Summary         string     `json:"summary" binding:"max=500"`
+	Cover           string     `json:"cover" binding:"max=500"`
+	CategoryID      uint       `json:"category_id" binding:"required"`
+	ChapterID       *uint      `json:"chapter_id"` // 章节ID，可为空
+	TagIDs          []uint     `json:"tag_ids"`
+	Status          int        `json:"status" binding:"oneof=0 1 2"` // 0: draft, 1: published, 2: offline
+	CreatedAt       *time.Time `json:"created_at"`                   // 创建时间，可选，如果不传则使用当前时间
 }
 
 // UpdateArticleRequest 更新文章请求
 type UpdateArticleRequest struct {
-	Title           string `json:"title" binding:"omitempty,max=200"`
-	ContentMarkdown string `json:"content_markdown"`
-	ContentHTML     string `json:"content_html"` // 可选
-	Summary         string `json:"summary" binding:"max=500"`
-	Cover           string `json:"cover" binding:"max=500"`
-	CategoryID      uint   `json:"category_id"`
-	ChapterID       *uint  `json:"chapter_id"` // 章节ID，可为空
-	TagIDs          []uint `json:"tag_ids"`
-	Status          int    `json:"status" binding:"omitempty,oneof=0 1 2"`
+	Title           string     `json:"title" binding:"omitempty,max=200"`
+	ContentMarkdown string     `json:"content_markdown"`
+	ContentHTML     string     `json:"content_html"` // 可选
+	Summary         string     `json:"summary" binding:"max=500"`
+	Cover           string     `json:"cover" binding:"max=500"`
+	CategoryID      uint       `json:"category_id"`
+	ChapterID       *uint      `json:"chapter_id"` // 章节ID，可为空
+	TagIDs          []uint     `json:"tag_ids"`
+	Status          int        `json:"status" binding:"omitempty,oneof=0 1 2"`
+	CreatedAt       *time.Time `json:"created_at"` // 创建时间，可选，允许手动修改创建时间
 }
 
 // UpdateArticleStatusRequest 更新文章状态请求
