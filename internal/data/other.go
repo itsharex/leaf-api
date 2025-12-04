@@ -410,6 +410,15 @@ func (r *settingRepo) List() ([]*po.Setting, error) {
 func (r *settingRepo) BatchUpdate(settings []*po.Setting) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		for _, setting := range settings {
+			// 如果ID为0，说明是新记录，需要先检查是否存在
+			if setting.ID == 0 {
+				// 尝试查找已存在的记录
+				var existing po.Setting
+				if err := tx.Where("key = ?", setting.Key).First(&existing).Error; err == nil {
+					// 已存在，更新ID后再保存
+					setting.ID = existing.ID
+				}
+			}
 			if err := tx.Save(setting).Error; err != nil {
 				return err
 			}

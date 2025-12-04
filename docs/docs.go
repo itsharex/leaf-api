@@ -24,6 +24,364 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/analytics/online/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前在线人数统计，包括注册用户和游客数量",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "数据分析"
+                ],
+                "summary": "获取在线统计概览",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "guests": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "users": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/online/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前在线的用户列表，包括用户ID、用户名、IP、最后活跃时间等详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "数据分析"
+                ],
+                "summary": "获取在线用户详情",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "guests": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                },
+                                                "users": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/pages/top": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取访问量最高的页面列表（近7天）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "数据分析"
+                ],
+                "summary": "获取热门页面",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "返回数量",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "avg_duration": {
+                                                        "type": "number",
+                                                        "format": "float64"
+                                                    },
+                                                    "path": {
+                                                        "type": "string"
+                                                    },
+                                                    "visits": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/visits/7days": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取近7天每天的访问量统计数据（PV和UV）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "数据分析"
+                ],
+                "summary": "获取近7天访问量",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "dates": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "pv": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    }
+                                                },
+                                                "total_pv": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "total_uv": {
+                                                    "type": "integer",
+                                                    "format": "int64"
+                                                },
+                                                "uv": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/visits/realtime": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取最近1小时的访问量趋势（按分钟统计）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "数据分析"
+                ],
+                "summary": "获取实时访问数据",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "timestamps": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "visits": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "integer",
+                                                        "format": "int64"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/articles": {
             "post": {
                 "security": [
@@ -1781,6 +2139,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/blog/guestbook/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除留言板消息（需要是管理员或消息作者）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "博客前台"
+                ],
+                "summary": "删除留言板消息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "留言ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "请求参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/blog/heartbeat": {
             "post": {
                 "description": "记录用户在线状态，登录用户按UserID追踪，未登录按IP追踪",
@@ -3477,6 +3884,10 @@ const docTemplate = `{
                     "description": "封面，可选",
                     "type": "string"
                 },
+                "created_at": {
+                    "description": "创建时间，可选",
+                    "type": "string"
+                },
                 "tag_ids": {
                     "description": "标签ID列表，可选",
                     "type": "array",
@@ -3527,6 +3938,10 @@ const docTemplate = `{
                 "cover": {
                     "type": "string",
                     "maxLength": 500
+                },
+                "created_at": {
+                    "description": "创建时间，可选，如果不传则使用当前时间",
+                    "type": "string"
                 },
                 "status": {
                     "description": "0: draft, 1: published, 2: offline",
@@ -3716,6 +4131,10 @@ const docTemplate = `{
                 "cover": {
                     "type": "string",
                     "maxLength": 500
+                },
+                "created_at": {
+                    "description": "创建时间，可选，允许手动修改创建时间",
+                    "type": "string"
                 },
                 "status": {
                     "type": "integer",

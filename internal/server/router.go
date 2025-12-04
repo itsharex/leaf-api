@@ -22,6 +22,7 @@ func registerRoutes(
 	blogService *service.BlogService,
 	onlineService *service.OnlineService,
 	visitService *service.VisitService,
+	analyticsService *service.AnalyticsService,
 ) {
 	// 管理后台认证路由（不需要 JWT 验证）
 	auth := r.Group("/auth")
@@ -63,6 +64,9 @@ func registerRoutes(
 
 		// 博主信息（关于页面使用）
 		blog.GET("/blogger", blogService.GetBloggerInfo) // 获取博主信息
+
+		// 站点设置（公开访问，用于前端显示备案信息等）
+		blog.GET("/settings", settingsService.Get) // 获取站点设置
 	}
 
 	// 博客可选认证路由（支持登录和未登录状态）
@@ -177,6 +181,16 @@ func registerRoutes(
 		{
 			stats.GET("", statsService.GetStats)
 			stats.GET("/hot-articles", statsService.GetHotArticles)
+		}
+
+		// 数据分析
+		analytics := api.Group("/analytics")
+		{
+			analytics.GET("/visits/7days", analyticsService.Get7DaysVisits)
+			analytics.GET("/online/users", analyticsService.GetOnlineUsers)
+			analytics.GET("/online/stats", analyticsService.GetOnlineStats)
+			analytics.GET("/visits/realtime", analyticsService.GetRealtimeVisits)
+			analytics.GET("/pages/top", analyticsService.GetTopPages)
 		}
 
 		// 设置

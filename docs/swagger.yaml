@@ -40,6 +40,9 @@ definitions:
       cover:
         description: 封面，可选
         type: string
+      created_at:
+        description: 创建时间，可选
+        type: string
       tag_ids:
         description: 标签ID列表，可选
         items:
@@ -73,6 +76,9 @@ definitions:
         type: string
       cover:
         maxLength: 500
+        type: string
+      created_at:
+        description: 创建时间，可选，如果不传则使用当前时间
         type: string
       status:
         description: '0: draft, 1: published, 2: offline'
@@ -215,6 +221,9 @@ definitions:
       cover:
         maxLength: 500
         type: string
+      created_at:
+        description: 创建时间，可选，允许手动修改创建时间
+        type: string
       status:
         enum:
         - 0
@@ -318,6 +327,222 @@ info:
   title: Leaf API
   version: 1.0.0
 paths:
+  /analytics/online/stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前在线人数统计，包括注册用户和游客数量
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  properties:
+                    guests:
+                      type: integer
+                    total:
+                      type: integer
+                    users:
+                      type: integer
+                  type: object
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取在线统计概览
+      tags:
+      - 数据分析
+  /analytics/online/users:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前在线的用户列表，包括用户ID、用户名、IP、最后活跃时间等详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  properties:
+                    guests:
+                      items:
+                        type: object
+                      type: array
+                    total:
+                      type: integer
+                    users:
+                      items:
+                        type: object
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取在线用户详情
+      tags:
+      - 数据分析
+  /analytics/pages/top:
+    get:
+      consumes:
+      - application/json
+      description: 获取访问量最高的页面列表（近7天）
+      parameters:
+      - default: 10
+        description: 返回数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    properties:
+                      avg_duration:
+                        format: float64
+                        type: number
+                      path:
+                        type: string
+                      visits:
+                        format: int64
+                        type: integer
+                    type: object
+                  type: array
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取热门页面
+      tags:
+      - 数据分析
+  /analytics/visits/7days:
+    get:
+      consumes:
+      - application/json
+      description: 获取近7天每天的访问量统计数据（PV和UV）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  properties:
+                    dates:
+                      items:
+                        type: string
+                      type: array
+                    pv:
+                      items:
+                        format: int64
+                        type: integer
+                      type: array
+                    total_pv:
+                      format: int64
+                      type: integer
+                    total_uv:
+                      format: int64
+                      type: integer
+                    uv:
+                      items:
+                        format: int64
+                        type: integer
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取近7天访问量
+      tags:
+      - 数据分析
+  /analytics/visits/realtime:
+    get:
+      consumes:
+      - application/json
+      description: 获取最近1小时的访问量趋势（按分钟统计）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  properties:
+                    timestamps:
+                      items:
+                        type: string
+                      type: array
+                    visits:
+                      items:
+                        format: int64
+                        type: integer
+                      type: array
+                  type: object
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取实时访问数据
+      tags:
+      - 数据分析
   /articles:
     post:
       consumes:
@@ -1446,6 +1671,37 @@ paths:
       security:
       - BearerAuth: []
       summary: 创建留言板消息
+      tags:
+      - 博客前台
+  /blog/guestbook/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除留言板消息（需要是管理员或消息作者）
+      parameters:
+      - description: 留言ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/response.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除留言板消息
       tags:
       - 博客前台
   /blog/heartbeat:

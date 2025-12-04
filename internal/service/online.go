@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -107,13 +108,42 @@ func NewVisitService(d *data.Data) *VisitService {
 // @Router /blog/visit [post]
 func (s *VisitService) RecordVisitDuration(c *gin.Context) {
 	var req struct {
-		Path     string `json:"path" binding:"required"`
-		Duration int    `json:"duration" binding:"min=0"` // 秒，0表示刚进入页面
+		Path     string `json:"path"`
+		Duration int    `json:"duration"` // 秒，0表示刚进入页面
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, 400, "参数错误")
+	// 兼容不同的 Content-Type (支持 sendBeacon 发送的 text/plain 等)
+	contentType := c.GetHeader("Content-Type")
+	if contentType == "" || c.ContentType() == "text/plain" || c.ContentType() == "application/x-www-form-urlencoded" {
+		// 尝试直接绑定
+		if err := c.ShouldBind(&req); err != nil {
+			// 如果失败，尝试从原始 Body 解析
+			bodyBytes, _ := c.GetRawData()
+			if len(bodyBytes) > 0 {
+				// 尝试解析为 JSON
+				if err := json.Unmarshal(bodyBytes, &req); err != nil {
+					response.Error(c, 400, "参数错误: "+err.Error())
+					return
+				}
+			}
+		}
+	} else {
+		// 标准 JSON 请求
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, 400, "参数错误: "+err.Error())
+			return
+		}
+	}
+
+	// 验证必填参数
+	if req.Path == "" {
+		response.Error(c, 400, "path 参数不能为空")
 		return
+	}
+
+	// duration 可以为 0（刚进入页面）
+	if req.Duration < 0 {
+		req.Duration = 0
 	}
 
 	// 获取用户ID（如果已登录）
