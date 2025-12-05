@@ -109,24 +109,31 @@ func (s *AnalyticsService) GetOnlineUsers(c *gin.Context) {
 
 	// 在线用户详情列表
 	type OnlineUser struct {
-		UserID       uint      `json:"user_id"`
-		Username     string    `json:"username"`
-		Nickname     string    `json:"nickname"`
-		Avatar       string    `json:"avatar"`
-		IP           string    `json:"ip"`
-		LastActiveAt time.Time `json:"last_active_at"`
-		OnlineDuration int64   `json:"online_duration"` // 在线时长（秒）
+		UserID         uint      `json:"user_id"`
+		Username       string    `json:"username"`
+		Nickname       string    `json:"nickname"`
+		Avatar         string    `json:"avatar"`
+		IP             string    `json:"ip"`
+		CurrentPage    string    `json:"current_page"`    // 当前访问的页面
+		UserAgent      string    `json:"user_agent"`      // 浏览器信息
+		LastActiveAt   time.Time `json:"last_active_at"`
+		OnlineDuration int64     `json:"online_duration"` // 在线时长（秒）
 	}
 
 	// 在线游客详情列表
 	type OnlineGuest struct {
 		IP           string    `json:"ip"`
+		CurrentPage  string    `json:"current_page"`  // 当前访问的页面
+		UserAgent    string    `json:"user_agent"`    // 浏览器信息
 		LastActiveAt time.Time `json:"last_active_at"`
 		Location     string    `json:"location,omitempty"` // IP地理位置（可选）
 	}
 
 	users := make([]OnlineUser, 0)
 	guests := make([]OnlineGuest, 0)
+
+	client := redis.GetClient()
+	ctx := redis.GetContext()
 
 	// 处理在线用户
 	for _, key := range userKeys {
@@ -135,10 +142,16 @@ func (s *AnalyticsService) GetOnlineUsers(c *gin.Context) {
 		var userID uint
 		fmt.Sscanf(userIDStr, "%d", &userID)
 
-		// 获取最后活跃时间
-		lastActiveTimestamp, err := redis.GetInt(key)
-		if err != nil {
+		// 从 Redis Hash 获取详细信息
+		data, err := client.HGetAll(ctx, key).Result()
+		if err != nil || len(data) == 0 {
 			continue
+		}
+
+		// 解析时间戳
+		var lastActiveTimestamp int64
+		if ts, ok := data["last_active_at"]; ok {
+			fmt.Sscanf(ts, "%d", &lastActiveTimestamp)
 		}
 		lastActiveAt := time.Unix(lastActiveTimestamp, 0)
 
@@ -148,7 +161,7 @@ func (s *AnalyticsService) GetOnlineUsers(c *gin.Context) {
 			continue
 		}
 
-		// 计算在线时长（从用户第一次上线到现在）
+		// 计算在线时长
 		onlineDuration := time.Since(lastActiveAt).Seconds()
 		if onlineDuration < 0 {
 			onlineDuration = 0
@@ -159,7 +172,9 @@ func (s *AnalyticsService) GetOnlineUsers(c *gin.Context) {
 			Username:       user.Username,
 			Nickname:       user.Nickname,
 			Avatar:         user.Avatar,
-			IP:             "", // 保护隐私，不返回用户IP
+			IP:             data["ip"],
+			CurrentPage:    data["path"],
+			UserAgent:      data["user_agent"],
 			LastActiveAt:   lastActiveAt,
 			OnlineDuration: int64(onlineDuration),
 		})
@@ -170,15 +185,23 @@ func (s *AnalyticsService) GetOnlineUsers(c *gin.Context) {
 		// 提取IP
 		ip := strings.TrimPrefix(key, onlineGuestPrefix)
 
-		// 获取最后活跃时间
-		lastActiveTimestamp, err := redis.GetInt(key)
-		if err != nil {
+		// 从 Redis Hash 获取详细信息
+		data, err := client.HGetAll(ctx, key).Result()
+		if err != nil || len(data) == 0 {
 			continue
+		}
+
+		// 解析时间戳
+		var lastActiveTimestamp int64
+		if ts, ok := data["last_active_at"]; ok {
+			fmt.Sscanf(ts, "%d", &lastActiveTimestamp)
 		}
 		lastActiveAt := time.Unix(lastActiveTimestamp, 0)
 
 		guests = append(guests, OnlineGuest{
 			IP:           ip,
+			CurrentPage:  data["path"],
+			UserAgent:    data["user_agent"],
 			LastActiveAt: lastActiveAt,
 			Location:     s.getIPLocation(ip), // 获取IP地理位置
 		})

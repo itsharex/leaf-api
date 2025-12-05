@@ -2201,6 +2201,21 @@ const docTemplate = `{
                     "在线追踪"
                 ],
                 "summary": "记录用户心跳",
+                "parameters": [
+                    {
+                        "description": "当前页面路径",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "记录成功",

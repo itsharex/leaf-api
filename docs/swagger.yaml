@@ -1709,6 +1709,15 @@ paths:
       consumes:
       - application/json
       description: 记录用户在线状态，登录用户按UserID追踪，未登录按IP追踪
+      parameters:
+      - description: 当前页面路径
+        in: body
+        name: request
+        schema:
+          properties:
+            path:
+              type: string
+          type: object
       produces:
       - application/json
       responses:

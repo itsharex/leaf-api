@@ -39,29 +39,51 @@ func NewOnlineService(d *data.Data) *OnlineService {
 // @Tags 在线追踪
 // @Accept json
 // @Produce json
+// @Param request body object{path=string} false "当前页面路径"
 // @Success 200 {object} response.Response "记录成功"
 // @Failure 500 {object} response.Response "服务器错误"
 // @Router /blog/heartbeat [post]
 func (s *OnlineService) RecordHeartbeat(c *gin.Context) {
+	// 解析请求参数
+	var req struct {
+		Path string `json:"path"`
+	}
+	c.ShouldBindJSON(&req)
+
 	// 获取用户ID（如果已登录）
 	userIDValue, exists := c.Get("user_id")
+	ip := c.ClientIP()
 
 	var key string
+	var userID uint = 0
 	if exists && userIDValue != nil {
-		userID := userIDValue.(uint)
+		userID = userIDValue.(uint)
 		key = fmt.Sprintf("%s%d", onlineUserPrefix, userID)
 	} else {
 		// 未登录用户，使用 IP 作为标识
-		ip := c.ClientIP()
 		key = fmt.Sprintf("%s%s", onlineGuestPrefix, ip)
 	}
 
-	// 设置带过期时间的键
-	err := redis.SetWithExpire(key, time.Now().Unix(), onlineUserExpire)
+	// 使用 Redis Hash 存储详细信息
+	client := redis.GetClient()
+	ctx := redis.GetContext()
+
+	// 存储在线信息
+	fields := map[string]interface{}{
+		"last_active_at": time.Now().Unix(),
+		"ip":             ip,
+		"path":           req.Path,
+		"user_agent":     c.GetHeader("User-Agent"),
+	}
+
+	err := client.HSet(ctx, key, fields).Err()
 	if err != nil {
-		response.Error(c, 500, "记录在线状态失败")
+		response.Error(c, 500, "记录在线状态失败: "+err.Error())
 		return
 	}
+
+	// 设置过期时间
+	client.Expire(ctx, key, onlineUserExpire)
 
 	response.Success(c, gin.H{"status": "ok"})
 }
