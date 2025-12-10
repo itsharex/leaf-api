@@ -122,3 +122,15 @@ type BloggerInfoResponse struct {
 	CommentCount int64 `json:"comment_count"`
 	LikeCount    int64 `json:"like_count"`
 }
+
+// AdjacentArticleSummary 相邻文章摘要信息
+type AdjacentArticleSummary struct {
+	ID    uint   `json:"id"`
+	Title string `json:"title"`
+}
+
+// AdjacentArticlesResponse 相邻文章响应
+type AdjacentArticlesResponse struct {
+	Prev *AdjacentArticleSummary `json:"prev"` // 上一篇
+	Next *AdjacentArticleSummary `json:"next"` // 下一篇
+}

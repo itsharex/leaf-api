@@ -47,6 +47,8 @@ type ArticleRepo interface {
 	BatchAssociateTags(articleIDs []uint, tagIDs []uint) error
 	// BatchDelete 批量删除
 	BatchDelete(articleIDs []uint) error
+	// GetAdjacentArticles 获取上一篇和下一篇文章（基于章节排序）
+	GetAdjacentArticles(id uint) (*po.Article, *po.Article, error)
 }
 
 // articleRepo 文章仓储实现
@@ -255,4 +257,136 @@ func (r *articleRepo) BatchAssociateTags(articleIDs []uint, tagIDs []uint) error
 // BatchDelete 批量删除
 func (r *articleRepo) BatchDelete(articleIDs []uint) error {
 	return r.db.Select("Tags").Delete(&po.Article{}, articleIDs).Error
+}
+
+// GetAdjacentArticles 获取上一篇和下一篇文章（基于章节排序）
+func (r *articleRepo) GetAdjacentArticles(id uint) (*po.Article, *po.Article, error) {
+	// 获取当前文章
+	var currentArticle po.Article
+	if err := r.db.Preload("Chapter").First(&currentArticle, id).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// 如果文章没有关联章节，则按ID顺序获取相邻文章
+	if currentArticle.ChapterID == nil {
+		return r.getAdjacentArticlesByID(id)
+	}
+
+	// 获取当前章节信息
+	var currentChapter po.Chapter
+	if err := r.db.First(&currentChapter, *currentArticle.ChapterID).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// 获取同一标签下的所有章节（包括父章节和子章节）
+	var allChapters []po.Chapter
+	if err := r.db.Where("tag_id = ?", currentChapter.TagID).
+		Order("parent_id ASC, sort ASC, id ASC").
+		Find(&allChapters).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// 获取所有章节下的文章（只获取已发布的）
+	chapterIDs := make([]uint, 0, len(allChapters))
+	for _, chapter := range allChapters {
+		chapterIDs = append(chapterIDs, chapter.ID)
+	}
+
+	var allArticles []po.Article
+	if err := r.db.Where("chapter_id IN ? AND status = ?", chapterIDs, 1).
+		Preload("Author").Preload("Category").Preload("Tags").Preload("Chapter").
+		Find(&allArticles).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// 按照章节顺序和创建时间排序文章
+	sortedArticles := r.sortArticlesByChapter(allArticles, allChapters)
+
+	// 找到当前文章的位置
+	currentIndex := -1
+	for i, article := range sortedArticles {
+		if article.ID == id {
+			currentIndex = i
+			break
+		}
+	}
+
+	if currentIndex == -1 {
+		return nil, nil, nil
+	}
+
+	var prevArticle, nextArticle *po.Article
+
+	// 获取上一篇
+	if currentIndex > 0 {
+		prevArticle = &sortedArticles[currentIndex-1]
+	}
+
+	// 获取下一篇
+	if currentIndex < len(sortedArticles)-1 {
+		nextArticle = &sortedArticles[currentIndex+1]
+	}
+
+	return prevArticle, nextArticle, nil
+}
+
+// getAdjacentArticlesByID 按ID顺序获取相邻文章（用于没有章节的文章）
+func (r *articleRepo) getAdjacentArticlesByID(id uint) (*po.Article, *po.Article, error) {
+	var prevArticle, nextArticle po.Article
+
+	// 获取上一篇（ID小于当前文章ID，按ID降序，取第一条）
+	err := r.db.Where("id < ? AND status = ?", id, 1).
+		Order("id DESC").
+		Limit(1).
+		Preload("Author").Preload("Category").Preload("Tags").Preload("Chapter").
+		First(&prevArticle).Error
+	var prev *po.Article
+	if err == nil {
+		prev = &prevArticle
+	}
+
+	// 获取下一篇（ID大于当前文章ID，按ID升序，取第一条）
+	err = r.db.Where("id > ? AND status = ?", id, 1).
+		Order("id ASC").
+		Limit(1).
+		Preload("Author").Preload("Category").Preload("Tags").Preload("Chapter").
+		First(&nextArticle).Error
+	var next *po.Article
+	if err == nil {
+		next = &nextArticle
+	}
+
+	return prev, next, nil
+}
+
+// sortArticlesByChapter 按章节顺序排序文章
+func (r *articleRepo) sortArticlesByChapter(articles []po.Article, chapters []po.Chapter) []po.Article {
+	// 创建章节ID到排序值的映射
+	chapterSortMap := make(map[uint]int)
+	for i, chapter := range chapters {
+		chapterSortMap[chapter.ID] = i
+	}
+
+	// 按照章节顺序和创建时间排序
+	sorted := make([]po.Article, len(articles))
+	copy(sorted, articles)
+
+	for i := 0; i < len(sorted); i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			iChapterSort := chapterSortMap[*sorted[i].ChapterID]
+			jChapterSort := chapterSortMap[*sorted[j].ChapterID]
+
+			// 先按章节排序
+			if iChapterSort > jChapterSort {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			} else if iChapterSort == jChapterSort {
+				// 同一章节内按创建时间排序
+				if sorted[i].CreatedAt.After(sorted[j].CreatedAt) {
+					sorted[i], sorted[j] = sorted[j], sorted[i]
+				}
+			}
+		}
+	}
+
+	return sorted
 }

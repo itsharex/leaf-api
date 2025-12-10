@@ -497,3 +497,30 @@ func (s *ArticleService) BatchDelete(c *gin.Context) {
 	})
 }
 
+// GetAdjacentArticles 获取上一篇和下一篇文章
+// @Summary 获取上一篇和下一篇文章
+// @Description 根据章节顺序获取当前文章的上一篇和下一篇
+// @Tags 博客前台
+// @Accept json
+// @Produce json
+// @Param id path int true "文章ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /blog/articles/{id}/adjacent [get]
+func (s *ArticleService) GetAdjacentArticles(c *gin.Context) {
+	var req dto.IDRequest
+	if err := c.ShouldBindUri(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	result, err := s.articleUseCase.GetAdjacentArticles(req.ID)
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, result)
+}
+

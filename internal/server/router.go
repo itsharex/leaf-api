@@ -50,6 +50,7 @@ func registerRoutes(
 		blog.GET("/articles", articleService.List)           // 文章列表
 		blog.GET("/articles/search", articleService.Search)  // 搜索文章
 		blog.GET("/articles/archive", articleService.Archive) // 归档文章
+		blog.GET("/articles/:id/adjacent", articleService.GetAdjacentArticles) // 获取上一篇和下一篇文章
 
 		// 分类和标签
 		blog.GET("/categories", categoryService.List) // 分类列表

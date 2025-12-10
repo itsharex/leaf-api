@@ -38,6 +38,8 @@ type ArticleUseCase interface {
 	BatchUpdateFields(req *dto.BatchUpdateFieldsRequest) error
 	// BatchDelete 批量删除
 	BatchDelete(articleIDs []uint) error
+	// GetAdjacentArticles 获取上一篇和下一篇文章
+	GetAdjacentArticles(id uint) (map[string]*dto.ArticleListItem, error)
 }
 
 // articleUseCase 文章业务用例实现
@@ -488,4 +490,26 @@ func (uc *articleUseCase) BatchDelete(articleIDs []uint) error {
 	}
 
 	return nil
+}
+
+// GetAdjacentArticles 获取上一篇和下一篇文章
+func (uc *articleUseCase) GetAdjacentArticles(id uint) (map[string]*dto.ArticleListItem, error) {
+	prevArticle, nextArticle, err := uc.data.ArticleRepo.GetAdjacentArticles(id)
+	if err != nil {
+		return nil, errors.New("获取相邻文章失败: " + err.Error())
+	}
+
+	result := make(map[string]*dto.ArticleListItem)
+
+	if prevArticle != nil {
+		prev := uc.convertToArticleListItem(prevArticle)
+		result["prev"] = &prev
+	}
+
+	if nextArticle != nil {
+		next := uc.convertToArticleListItem(nextArticle)
+		result["next"] = &next
+	}
+
+	return result, nil
 }
