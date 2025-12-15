@@ -5,6 +5,7 @@
 前端部署地址：
 - 网站端：https://github.com/ydcloud-dy/leaf-ui-frontend
 - 管理端：https://github.com/ydcloud-dy/leaf-ui-backend
+- 移动端：https://github.com/ydcloud-dy/leaf-ui-phone
 ## 📋 目录
 
 - [技术栈](#-技术栈)
