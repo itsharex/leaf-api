@@ -524,3 +524,35 @@ func (s *ArticleService) GetAdjacentArticles(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// Export 批量导出文章为 ZIP
+// @Summary 批量导出文章
+// @Description 将指定或所有文章导出为 ZIP 文件，包含 Markdown 文件和图片
+// @Tags 文章管理
+// @Accept json
+// @Produce application/zip
+// @Security BearerAuth
+// @Param request body dto.ExportArticleRequest true "导出请求，article_ids 为空表示导出全部"
+// @Success 200 "ZIP 文件"
+// @Failure 400 {object} response.Response "请求参数错误"
+// @Failure 401 {object} response.Response "未授权"
+// @Failure 500 {object} response.Response "服务器错误"
+// @Router /articles/export [post]
+func (s *ArticleService) Export(c *gin.Context) {
+	var req dto.ExportArticleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	zipData, err := s.articleUseCase.Export(req.ArticleIDs)
+	if err != nil {
+		response.ServerError(c, err.Error())
+		return
+	}
+
+	// 设置响应头以便下载 ZIP 文件
+	c.Header("Content-Disposition", "attachment; filename=articles.zip")
+	c.Header("Content-Type", "application/zip")
+	c.Data(200, "application/zip", zipData)
+}
+

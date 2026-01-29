@@ -19,6 +19,8 @@ type ArticleRepo interface {
 	FindByID(id uint) (*po.Article, error)
 	// FindByIDWithRelations 根据 ID 查询文章（包含关联数据）
 	FindByIDWithRelations(id uint) (*po.Article, error)
+	// FindByIDs 根据多个 ID 查询文章
+	FindByIDs(ids []uint) ([]*po.Article, error)
 	// List 查询文章列表
 	List(page, limit int, categoryID, tagID uint, status, keyword, sort string) ([]*po.Article, int64, error)
 	// UpdateStatus 更新文章状态
@@ -106,6 +108,19 @@ func (r *articleRepo) FindByIDWithRelations(id uint) (*po.Article, error) {
 		return nil, err
 	}
 	return &article, nil
+}
+
+// FindByIDs 根据多个 ID 查询文章
+func (r *articleRepo) FindByIDs(ids []uint) ([]*po.Article, error) {
+	var articles []*po.Article
+	err := r.db.Preload("Author").Preload("Category").Preload("Tags").
+		Where("id IN ?", ids).
+		Order("created_at DESC").
+		Find(&articles).Error
+	if err != nil {
+		return nil, err
+	}
+	return articles, nil
 }
 
 // List 查询文章列表

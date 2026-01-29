@@ -135,6 +135,7 @@ func registerRoutes(
 			articles.GET("/:id", articleService.GetByID)
 			articles.POST("", articleService.Create)
 			articles.POST("/import", articleService.ImportMarkdown)
+			articles.POST("/export", articleService.Export)
 			articles.POST("/batch-update-cover", articleService.BatchUpdateCover)
 			articles.POST("/batch-update-fields", articleService.BatchUpdateFields)
 			articles.POST("/batch-delete", articleService.BatchDelete)

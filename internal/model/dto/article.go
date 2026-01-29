@@ -127,3 +127,8 @@ type AuthorInfo struct {
 	Nickname string `json:"nickname"`
 	Avatar   string `json:"avatar"`
 }
+
+// ExportArticleRequest 导出文章请求
+type ExportArticleRequest struct {
+	ArticleIDs []uint `json:"article_ids"` // 文章ID列表，为空表示导出全部
+}

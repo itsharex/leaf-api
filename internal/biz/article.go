@@ -40,6 +40,8 @@ type ArticleUseCase interface {
 	BatchDelete(articleIDs []uint) error
 	// GetAdjacentArticles 获取上一篇和下一篇文章
 	GetAdjacentArticles(id uint) (map[string]*dto.ArticleListItem, error)
+	// Export 导出文章为 ZIP 文件
+	Export(articleIDs []uint) ([]byte, error)
 }
 
 // articleUseCase 文章业务用例实现
@@ -513,3 +515,31 @@ func (uc *articleUseCase) GetAdjacentArticles(id uint) (map[string]*dto.ArticleL
 
 	return result, nil
 }
+
+// Export 导出文章为 ZIP 文件
+func (uc *articleUseCase) Export(articleIDs []uint) ([]byte, error) {
+	var articles []*po.Article
+	var err error
+
+	// 获取文章列表
+	if len(articleIDs) == 0 {
+		// 获取所有已发布的文章
+		articles, _, err = uc.data.ArticleRepo.List(1, 10000, 0, 0, "1", "", "created_at DESC")
+	} else {
+		// 获取指定ID的文章
+		articles, err = uc.data.ArticleRepo.FindByIDs(articleIDs)
+	}
+
+	if err != nil {
+		return nil, errors.New("获取文章列表失败: " + err.Error())
+	}
+
+	if len(articles) == 0 {
+		return nil, errors.New("没有找到要导出的文章")
+	}
+
+	// 调用导出工具创建ZIP
+	exporter := mdutils.NewArticleExporter()
+	return exporter.ExportToZip(articles)
+}
+
