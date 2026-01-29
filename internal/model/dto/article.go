@@ -59,11 +59,12 @@ type BatchDeleteRequest struct {
 // ArticleListRequest 文章列表请求
 type ArticleListRequest struct {
 	PageRequest
-	Category string `form:"category"`
-	Tag      string `form:"tag"`
-	Status   string `form:"status"`
-	Keyword  string `form:"keyword"`
-	Sort     string `form:"sort"` // latest, views, likes
+	Category  string `form:"category"`
+	Tag       string `form:"tag"`
+	ChapterID string `form:"chapter_id"`
+	Status    string `form:"status"`
+	Keyword   string `form:"keyword"`
+	Sort      string `form:"sort"` // latest, views, likes
 }
 
 // ArticleResponse 文章响应

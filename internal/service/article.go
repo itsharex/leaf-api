@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 	"strconv"
@@ -182,9 +183,13 @@ func (s *ArticleService) List(c *gin.Context) {
 	// 解析过滤参数
 	req.Category = c.Query("category")
 	req.Tag = c.Query("tag")
+	req.ChapterID = c.Query("chapter_id")
 	req.Status = c.Query("status")
 	req.Keyword = c.Query("keyword")
 	req.Sort = c.DefaultQuery("sort", "latest") // 默认按最新排序
+
+	// 调试日志
+	fmt.Printf("[文章列表] ChapterID: %s, Status: %s, Keyword: %s\n", req.ChapterID, req.Status, req.Keyword)
 
 	resp, err := s.articleUseCase.List(&req)
 	if err != nil {

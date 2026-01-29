@@ -22,7 +22,7 @@ type ArticleRepo interface {
 	// FindByIDs 根据多个 ID 查询文章
 	FindByIDs(ids []uint) ([]*po.Article, error)
 	// List 查询文章列表
-	List(page, limit int, categoryID, tagID uint, status, keyword, sort string) ([]*po.Article, int64, error)
+	List(page, limit int, categoryID, tagID, chapterID uint, status, keyword, sort string) ([]*po.Article, int64, error)
 	// UpdateStatus 更新文章状态
 	UpdateStatus(id uint, status int) error
 	// IncrementViewCount 增加浏览量
@@ -124,7 +124,7 @@ func (r *articleRepo) FindByIDs(ids []uint) ([]*po.Article, error) {
 }
 
 // List 查询文章列表
-func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyword, sort string) ([]*po.Article, int64, error) {
+func (r *articleRepo) List(page, limit int, categoryID, tagID, chapterID uint, status, keyword, sort string) ([]*po.Article, int64, error) {
 	var articles []*po.Article
 	var total int64
 
@@ -140,6 +140,11 @@ func (r *articleRepo) List(page, limit int, categoryID, tagID uint, status, keyw
 	if tagID > 0 {
 		query = query.Joins("JOIN article_tags ON article_tags.article_id = articles.id").
 			Where("article_tags.tag_id = ?", tagID)
+	}
+
+	// 章节过滤
+	if chapterID > 0 {
+		query = query.Where("chapter_id = ?", chapterID)
 	}
 
 	// 状态过滤

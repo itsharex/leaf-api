@@ -2,6 +2,7 @@ package biz
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
@@ -209,7 +210,7 @@ func (uc *articleUseCase) GetByID(id uint) (*dto.ArticleResponse, error) {
 // List 查询文章列表
 func (uc *articleUseCase) List(req *dto.ArticleListRequest) (*dto.PageResponse, error) {
 	// 解析查询参数
-	var categoryID, tagID uint
+	var categoryID, tagID, chapterID uint
 	if req.Category != "" {
 		category, err := uc.data.CategoryRepo.FindByName(req.Category)
 		if err == nil {
@@ -222,11 +223,17 @@ func (uc *articleUseCase) List(req *dto.ArticleListRequest) (*dto.PageResponse, 
 			tagID = tag.ID
 		}
 	}
+	// 解析章节ID
+	if req.ChapterID != "" {
+		if id, err := strconv.ParseUint(req.ChapterID, 10, 32); err == nil {
+			chapterID = uint(id)
+		}
+	}
 
 	// 查询文章列表
 	articles, total, err := uc.data.ArticleRepo.List(
 		req.Page, req.Limit,
-		categoryID, tagID,
+		categoryID, tagID, chapterID,
 		req.Status, req.Keyword, req.Sort,
 	)
 	if err != nil {
@@ -524,7 +531,7 @@ func (uc *articleUseCase) Export(articleIDs []uint) ([]byte, error) {
 	// 获取文章列表
 	if len(articleIDs) == 0 {
 		// 获取所有已发布的文章
-		articles, _, err = uc.data.ArticleRepo.List(1, 10000, 0, 0, "1", "", "created_at DESC")
+		articles, _, err = uc.data.ArticleRepo.List(1, 10000, 0, 0, 0, "1", "", "created_at DESC")
 	} else {
 		// 获取指定ID的文章
 		articles, err = uc.data.ArticleRepo.FindByIDs(articleIDs)
