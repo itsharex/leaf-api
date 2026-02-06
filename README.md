@@ -311,6 +311,7 @@ kubectl port-forward svc/leaf-api-service 8888:8888 -n leaf-blog
 # 生产环境建议配置 Ingress
 ```
 
+默认平台账号密码：admin/admin123
 ## ⚙️ 配置说明
 
 ### 主要配置项
